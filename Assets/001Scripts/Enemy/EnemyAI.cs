@@ -1,59 +1,52 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 public class EnemyAI : MonoBehaviour
 {
-    [Header("Movement")]
-    public float runSpeed = 5f;
-    public float climbSpeed = 4f;
-
-    [Header("Separation (Vật lý toán học)")]
-    // Đã giảm thông số mặc định để quái đứng sát nhau hơn, tạo cảm giác bủa vây nghẹt thở
-    public float separationRadius = 0.4f;
-    public float separationForce = 1.5f;
-
     [Header("Climbing")]
-    public float wallDetectDistance = 0.6f;
-
-    // Các biến dùng cho Line of Sight (Tầm nhìn thẳng)
-    private float losTimer = 0f;
-    private bool hasLineOfSight = false;
+    public float climbSpeed = 4f;
 
     private bool isClimbing = false;
     private Cell currentCell;
 
-    void Update()
-    {
-        UpdateSpatialHashing();
+    private float losTimer = 0f;
+    private bool hasLineOfSight = false;
+    private float raycastTimer = 0f;
+    private bool isGrounded = true;
 
-        if (isClimbing)
-        {
-            ClimbLogic();
-        }
-        else
-        {
-            RunAndSeparateLogic();
-        }
+    private void OnEnable()
+    {
+        isClimbing = false;
+        isGrounded = true;
+        // Lệch nhịp tia laser để giảm tải CPU
+        losTimer = Random.Range(0f, 0.2f);
+        raycastTimer = Random.Range(0f, 0.06f);
+
+        // Báo danh với Quản lý Đa luồng khi vừa sinh ra
+        if (EnemyManager.Instance != null)
+            EnemyManager.Instance.RegisterEnemy(this);
     }
 
-    void UpdateSpatialHashing()
+    private void OnDisable()
     {
-        Cell newCell = FlowFieldManager.Instance.GetCellFromWorldPos(transform.position);
-        if (newCell != currentCell)
-        {
-            if (currentCell != null) currentCell.enemiesInThisCell.Remove(this.transform);
-            currentCell = newCell;
-            currentCell.enemiesInThisCell.Add(this.transform);
-        }
+        // Gạch tên khỏi Quản lý khi bị thu hồi vào Pool
+        if (EnemyManager.Instance != null)
+            EnemyManager.Instance.UnregisterEnemy(this);
+
+        // (Tùy chọn) Xóa tên khỏi ô lưới cũ nếu FlowFieldManager vẫn còn dùng
+        if (currentCell != null)
+            currentCell.enemiesInThisCell.Remove(this.transform);
     }
 
-    void RunAndSeparateLogic()
+    // --- HÀM NÀY CUNG CẤP DỮ LIỆU HƯỚNG ĐI CHO MANAGER ---
+    public Vector3 GetMovementDirection()
     {
-        if (currentCell == null) return;
+        if (isClimbing) return Vector3.zero;
 
-        Vector3 moveDir = Vector3.zero;
         Transform player = FlowFieldManager.Instance.playerTransform;
+        if (player == null) return Vector3.zero;
 
-        if (player == null) return;
+        // Cập nhật ô lưới để lấy hướng mũi tên của Flow Field
+        currentCell = FlowFieldManager.Instance.GetCellFromWorldPos(transform.position);
 
         Vector3 dirToPlayer = player.position - transform.position;
 
@@ -61,71 +54,77 @@ public class EnemyAI : MonoBehaviour
         if (losTimer <= 0f)
         {
             losTimer = 0.2f;
-            // Đổi thành dấu trừ (-) để hạ tia quét xuống thấp, giúp nó nhìn thấy cả các bức tường nhỏ
             hasLineOfSight = !Physics.Raycast(transform.position - Vector3.up * 0.5f, dirToPlayer.normalized, dirToPlayer.magnitude, FlowFieldManager.Instance.obstacleLayer);
         }
 
-        if (dirToPlayer.magnitude < 1.2f)
-        {
-            moveDir = Vector3.zero;
+        if (dirToPlayer.magnitude < 1.2f) return Vector3.zero;
+        else if (hasLineOfSight) return new Vector3(dirToPlayer.x, 0, dirToPlayer.z).normalized;
+        else if (currentCell != null) return new Vector3(currentCell.bestDirection.x, 0, currentCell.bestDirection.z).normalized;
 
+        return Vector3.zero;
+    }
+
+    // --- HÀM NÀY DO MANAGER GỌI ĐỂ XỬ LÝ LEO TƯỜNG VÀ RƠI ---
+    public void ApplyRaycasts()
+    {
+        if (isClimbing)
+        {
+            ClimbLogic();
+            return;
         }
-        else if (hasLineOfSight)
+
+        // Tối ưu hóa: Chỉ bắn tia Raycast 15 lần/giây
+        raycastTimer -= Time.deltaTime;
+        if (raycastTimer <= 0f)
         {
-            moveDir = new Vector3(dirToPlayer.x, 0, dirToPlayer.z).normalized;
-        }
-        else
-        {
-            moveDir = new Vector3(currentCell.bestDirection.x, 0, currentCell.bestDirection.z).normalized;
-        }
+            raycastTimer = 0.06f;
 
-        // 2. TÍNH TOÁN LỰC ĐẨY NHAU (ĐÃ TỐI ƯU HÓA)
-        Vector3 separationMove = Vector3.zero;
-        int pushCount = 0; // Biến đếm số lượng quái đã tương tác
+            // 1. TRỌNG LỰC (BÁM DÍNH CHỐNG LÚN)
+            // Nhấc điểm bắn tia lên ngang ngực (+1.0m) để tia luôn bắt đầu từ trên không khí đâm xuống
+            Vector3 rayOriginDown = transform.position + Vector3.up * 1f;
 
-        foreach (Transform otherEnemy in currentCell.enemiesInThisCell)
-        {
-            // GIỚI HẠN: Chỉ check tối đa 3 con quái xung quanh để cứu FPS
-            if (pushCount >= 3) break;
-
-            if (otherEnemy == this.transform) continue;
-
-            Vector3 diff = transform.position - otherEnemy.position;
-            float sqrDist = diff.sqrMagnitude;
-
-            if (sqrDist < separationRadius * separationRadius && sqrDist > 0.001f)
+            // Bắn tia dò tìm tọa độ mặt đất (dài 3 mét)
+            if (Physics.Raycast(rayOriginDown, Vector3.down, out RaycastHit groundHit, 3f))
             {
-                // Thay vì dùng Mathf.Sqrt (rất nặng), ta chia thẳng cho sqrDist hoặc một hằng số
-                // Điều này giúp CPU bỏ qua phép tính căn bậc hai phức tạp
-                separationMove += diff.normalized * separationForce;
-                pushCount++; // Tăng biến đếm lên
+                // Độ cao chuẩn = Điểm sàn nhà (groundHit.point.y) + 1.0m (Khoảng cách từ gót chân lên tâm quái)
+                float correctY = groundHit.point.y + 1.0f;
+
+                if (transform.position.y < correctY)
+                {
+                    // LỖI LÚN: Nếu Y hiện tại thấp hơn độ cao chuẩn -> Ép nảy lên mặt đất ngay lập tức!
+                    transform.position = new Vector3(transform.position.x, correctY, transform.position.z);
+                    isGrounded = true;
+                }
+                else if (transform.position.y > correctY + 0.1f)
+                {
+                    // Đang lơ lửng trên không -> Cho rơi tiếp
+                    isGrounded = false;
+                }
+                else
+                {
+                    // Đang đứng vững trên mặt đất
+                    isGrounded = true;
+                }
+            }
+            else
+            {
+                isGrounded = false; // Rơi xuống vực nếu không thấy đất
+            }
+
+            // 2. LEO TƯỜNG (Giữ nguyên như cũ)
+            Vector3 rayOriginForward = transform.position - Vector3.up * 0.5f - transform.forward * 0.5f;
+            LayerMask wallLayer = FlowFieldManager.Instance.obstacleLayer;
+            if (Physics.Raycast(rayOriginForward, transform.forward, out RaycastHit hit, 1.5f, wallLayer))
+            {
+                isClimbing = true;
+                transform.position = new Vector3(hit.point.x, transform.position.y, hit.point.z) - transform.forward * 0.4f;
             }
         }
 
-        Vector3 finalMove = (moveDir * runSpeed) + separationMove;
-
-        // 3. THÊM TRỌNG LỰC NHÂN TẠO (Đã sửa lỗi lún đất)
-        Vector3 rayOriginDown = transform.position;
-        if (!Physics.Raycast(rayOriginDown, Vector3.down, 1.05f))
+        // Kéo quái rơi tự do nếu đang lơ lửng
+        if (!isGrounded)
         {
-            finalMove += Vector3.down * 15f;
-        }
-
-        transform.position += finalMove * Time.deltaTime;
-
-        if (moveDir != Vector3.zero)
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(moveDir), Time.deltaTime * 15f);
-
-        // 4. KIỂM TRA LEO TƯỜNG (HẠ THẤP CẢM BIẾN XUỐNG ĐẦU GỐI)
-        Vector3 rayOriginForward = transform.position - Vector3.up * 0.5f - transform.forward * 0.5f;
-        LayerMask wallLayer = FlowFieldManager.Instance.obstacleLayer;
-
-        Debug.DrawRay(rayOriginForward, transform.forward * 1.5f, Color.red);
-
-        if (Physics.Raycast(rayOriginForward, transform.forward, out RaycastHit hit, 1.5f, wallLayer))
-        {
-            isClimbing = true;
-            transform.position = new Vector3(hit.point.x, transform.position.y, hit.point.z) - transform.forward * 0.4f;
+            transform.position += Vector3.down * 15f * Time.deltaTime;
         }
     }
 
@@ -136,20 +135,10 @@ public class EnemyAI : MonoBehaviour
         Vector3 bottomRayOrigin = transform.position - Vector3.up * 0.9f - transform.forward * 0.5f;
         LayerMask wallLayer = FlowFieldManager.Instance.obstacleLayer;
 
-        Debug.DrawRay(bottomRayOrigin, transform.forward * 1.5f, Color.blue);
-
         if (!Physics.Raycast(bottomRayOrigin, transform.forward, 1.5f, wallLayer))
         {
             transform.position += transform.forward * 0.8f + Vector3.up * 0.2f;
             isClimbing = false;
-        }
-    }
-
-    private void OnDisable()
-    {
-        if (currentCell != null)
-        {
-            currentCell.enemiesInThisCell.Remove(this.transform);
         }
     }
 }
