@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 public class PlayerSimpleMovement : MonoBehaviour
 {
@@ -6,7 +6,6 @@ public class PlayerSimpleMovement : MonoBehaviour
     public CharacterController controller;
     private Transform cam;
 
-    // --- 1. THÊM BIẾN CHỨA ANIMATOR ---
     private Animator anim;
 
     [Header("Movement Settings")]
@@ -31,7 +30,6 @@ public class PlayerSimpleMovement : MonoBehaviour
             cam = Camera.main.transform;
         }
 
-        // --- 2. TỰ ĐỘNG TÌM ANIMATOR Ở OBJECT CON (Megachadd) ---
         anim = GetComponentInChildren<Animator>();
     }
 
@@ -47,11 +45,10 @@ public class PlayerSimpleMovement : MonoBehaviour
         float z = Input.GetAxisRaw("Vertical");
         Vector3 direction = new Vector3(x, 0f, z).normalized;
 
-        // --- 3. BÁO CÁO TỐC ĐỘ CHO ANIMATOR ---
-        // direction.magnitude sẽ bằng 0 khi đứng im, và bằng 1 khi bấm phím di chuyển
         if (anim != null)
         {
             anim.SetFloat("Speed", direction.magnitude);
+            anim.SetBool("IsGrounded", isGrounded);
         }
 
         if (direction.magnitude >= 0.1f)
@@ -69,7 +66,6 @@ public class PlayerSimpleMovement : MonoBehaviour
         {
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
 
-            // --- 4. KÍCH HOẠT HOẠT ẢNH NHẢY ---
             if (anim != null)
             {
                 anim.SetTrigger("Jump");
