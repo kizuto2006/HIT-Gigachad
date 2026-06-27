@@ -6,13 +6,16 @@ public class PlayerSimpleMovement : MonoBehaviour
     public CharacterController controller;
     private Transform cam;
 
+    // --- 1. THÊM BIẾN CHỨA ANIMATOR ---
+    private Animator anim;
+
     [Header("Movement Settings")]
-    public float moveSpeed = 10f;       
-    public float gravity = -25f;       
-    public float jumpHeight = 2.5f;    
+    public float moveSpeed = 10f;
+    public float gravity = -25f;
+    public float jumpHeight = 2.5f;
 
     [Header("Rotation Settings")]
-    public float turnSmoothTime = 0.05f; 
+    public float turnSmoothTime = 0.05f;
     private float turnSmoothVelocity;
 
     private Vector3 velocity;
@@ -27,6 +30,9 @@ public class PlayerSimpleMovement : MonoBehaviour
         {
             cam = Camera.main.transform;
         }
+
+        // --- 2. TỰ ĐỘNG TÌM ANIMATOR Ở OBJECT CON (Megachadd) ---
+        anim = GetComponentInChildren<Animator>();
     }
 
     void Update()
@@ -34,13 +40,19 @@ public class PlayerSimpleMovement : MonoBehaviour
         isGrounded = controller.isGrounded;
         if (isGrounded && velocity.y < 0)
         {
-            velocity.y = -2f; 
+            velocity.y = -2f;
         }
 
-       
         float x = Input.GetAxisRaw("Horizontal");
         float z = Input.GetAxisRaw("Vertical");
         Vector3 direction = new Vector3(x, 0f, z).normalized;
+
+        // --- 3. BÁO CÁO TỐC ĐỘ CHO ANIMATOR ---
+        // direction.magnitude sẽ bằng 0 khi đứng im, và bằng 1 khi bấm phím di chuyển
+        if (anim != null)
+        {
+            anim.SetFloat("Speed", direction.magnitude);
+        }
 
         if (direction.magnitude >= 0.1f)
         {
@@ -56,6 +68,12 @@ public class PlayerSimpleMovement : MonoBehaviour
         if (Input.GetButtonDown("Jump") && isGrounded)
         {
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+
+            // --- 4. KÍCH HOẠT HOẠT ẢNH NHẢY ---
+            if (anim != null)
+            {
+                anim.SetTrigger("Jump");
+            }
         }
 
         velocity.y += gravity * Time.deltaTime;

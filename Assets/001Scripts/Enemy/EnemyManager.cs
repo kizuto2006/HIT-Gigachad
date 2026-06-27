@@ -1,9 +1,10 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Jobs;
 
 public class EnemyManager : MonoBehaviour
 {
@@ -11,6 +12,7 @@ public class EnemyManager : MonoBehaviour
 
     // Danh sách lưu toàn bộ quái vật đang sống
     public List<EnemyAI> activeEnemies = new List<EnemyAI>(5000);
+    public TransformAccessArray transformAccessArray;
 
     [Header("Settings")]
     public float runSpeed = 5f;
@@ -20,16 +22,31 @@ public class EnemyManager : MonoBehaviour
     void Awake()
     {
         Instance = this;
+        transformAccessArray = new TransformAccessArray(5000);
+    }
+
+    void OnDestroy()
+    {
+        if (transformAccessArray.isCreated)
+            transformAccessArray.Dispose();
     }
 
     public void RegisterEnemy(EnemyAI enemy)
     {
         activeEnemies.Add(enemy);
+        transformAccessArray.Add(enemy.transform);
     }
 
     public void UnregisterEnemy(EnemyAI enemy)
     {
-        activeEnemies.Remove(enemy);
+        int index = activeEnemies.IndexOf(enemy);
+        if (index >= 0)
+        {
+            // Để giữ đồng bộ giữa danh sách và mảng Transform, phải hoán đổi phần tử cuối cùng
+            activeEnemies[index] = activeEnemies[activeEnemies.Count - 1];
+            activeEnemies.RemoveAt(activeEnemies.Count - 1);
+            transformAccessArray.RemoveAtSwapBack(index);
+        }
     }
 
     void Update()
@@ -47,6 +64,7 @@ public class EnemyManager : MonoBehaviour
             moveDirs[i] = activeEnemies[i].GetMovementDirection(); 
         }
 
+        // Job 1: Tính toán hướng di chuyển và xô đẩy
         EnemyUpdateJob job = new EnemyUpdateJob
         {
             positions = positions,
@@ -60,20 +78,24 @@ public class EnemyManager : MonoBehaviour
 
         JobHandle handle = job.Schedule(count, 64);
 
-        handle.Complete();
+        // Job 2: Cập nhật Transform trực tiếp trên đa luồng (Worker Threads)
+        EnemyMoveJob moveJob = new EnemyMoveJob
+        {
+            newPositions = newPositions,
+            moveDirs = moveDirs,
+            deltaTime = Time.deltaTime
+        };
 
+        // Lên lịch Job 2 chạy NGAY SAU KHI Job 1 hoàn thành
+        JobHandle moveHandle = moveJob.Schedule(transformAccessArray, handle);
+        
+        // Đợi tất cả các Job chạy xong
+        moveHandle.Complete();
+
+        // Xử lý nốt thao tác Raycast leo tường trên Main Thread
         for (int i = 0; i < count; i++)
         {
-            EnemyAI enemy = activeEnemies[i];
-
-            enemy.transform.position = newPositions[i];
-
-            if (math.lengthsq(moveDirs[i]) > 0.01f)
-            {
-                enemy.transform.rotation = Quaternion.Slerp(enemy.transform.rotation, Quaternion.LookRotation(moveDirs[i]), Time.deltaTime * 15f);
-            }
-
-            enemy.ApplyRaycasts();
+            activeEnemies[i].ApplyRaycasts();
         }
 
         positions.Dispose();
@@ -120,5 +142,26 @@ public struct EnemyUpdateJob : IJobParallelFor
 
         float3 finalMove = (dir * runSpeed) + separationMove;
         newPositions[index] = myPos + (finalMove * deltaTime);
+    }
+}
+
+[BurstCompile]
+public struct EnemyMoveJob : IJobParallelForTransform
+{
+    [ReadOnly] public NativeArray<float3> newPositions;
+    [ReadOnly] public NativeArray<float3> moveDirs;
+    public float deltaTime;
+
+    public void Execute(int index, TransformAccess transform)
+    {
+        transform.position = newPositions[index];
+
+        float3 dir = moveDirs[index];
+        if (math.lengthsq(dir) > 0.01f)
+        {
+            quaternion currentRot = transform.rotation;
+            quaternion targetRot = quaternion.LookRotationSafe(dir, new float3(0, 1, 0));
+            transform.rotation = math.slerp(currentRot, targetRot, deltaTime * 15f);
+        }
     }
 }

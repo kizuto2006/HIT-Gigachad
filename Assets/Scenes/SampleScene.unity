@@ -1997,7 +1997,7 @@ Transform:
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
   m_LocalRotation: {x: 0.10931582, y: -0.00000000740595, z: 8.1446855e-10, w: 0.9940071}
-  m_LocalPosition: {x: 61.19, y: 14.3302765, z: 64.79717}
+  m_LocalPosition: {x: 39.8, y: 9.570277, z: 94.167175}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3337,7 +3337,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &584029582
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5140,7 +5140,7 @@ Transform:
   m_GameObject: {fileID: 823939096}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.45353934, z: -0, w: 0.89123625}
-  m_LocalPosition: {x: 61.19, y: 11.23, z: 74.63}
+  m_LocalPosition: {x: 39.8, y: 6.47, z: 104}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -6864,7 +6864,7 @@ Transform:
   m_GameObject: {fileID: 1092881322}
   serializedVersion: 2
   m_LocalRotation: {x: 0.1092998, y: -1.6615613e-11, z: 2.2508432e-12, w: 0.9940089}
-  m_LocalPosition: {x: 61.19, y: 14.3302765, z: 64.79717}
+  m_LocalPosition: {x: 39.8, y: 9.570277, z: 94.167175}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -14894,6 +14894,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2124225032}
+  - component: {fileID: 2124225033}
   m_Layer: 0
   m_Name: EnemiesContainer
   m_TagString: Untagged
@@ -14916,6 +14917,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2124225033
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2124225031}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef2ae7842a7c74642931f37579d7b349, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyManager
+  activeEnemies: []
+  runSpeed: 5
+  separationRadius: 0.4
+  separationForce: 1.5
 --- !u!1 &2128874685
 GameObject:
   m_ObjectHideFlags: 0
