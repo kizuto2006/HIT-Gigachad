@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PlayerSimpleMovement : MonoBehaviour
 {
@@ -30,6 +31,10 @@ public class PlayerSimpleMovement : MonoBehaviour
     private bool isGrounded;
     private Vector3 inputDirection;
 
+    // Input System: lưu giá trị input từ callback
+    private Vector2 moveInput;
+    private bool jumpPressed;
+
     void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
@@ -57,6 +62,34 @@ public class PlayerSimpleMovement : MonoBehaviour
         HandleJump();
         ApplyGravity();
     }
+
+    // =============================================
+    // INPUT SYSTEM CALLBACKS (PlayerInput - Invoke Unity Events)
+    // Kéo thả trong Inspector của PlayerInput component
+    // =============================================
+
+    /// <summary>
+    /// Gán vào PlayerInput > Events > Player > Move
+    /// </summary>
+    public void OnMove(InputAction.CallbackContext context)
+    {
+        moveInput = context.ReadValue<Vector2>();
+    }
+
+    /// <summary>
+    /// Gán vào PlayerInput > Events > Player > Jump
+    /// </summary>
+    public void OnJump(InputAction.CallbackContext context)
+    {
+        if (context.performed)
+        {
+            jumpPressed = true;
+        }
+    }
+
+    // =============================================
+    // MOVEMENT LOGIC (giữ nguyên logic cũ)
+    // =============================================
 
     /// <summary>
     /// Kiểm tra nhân vật có đang chạm đất không và reset velocity.y
@@ -90,9 +123,10 @@ public class PlayerSimpleMovement : MonoBehaviour
     /// </summary>
     private void HandleJumpBuffer()
     {
-        if (Input.GetButtonDown("Jump"))
+        if (jumpPressed)
         {
             jumpBufferCounter = jumpBufferTime;
+            jumpPressed = false; // reset flag sau khi đã ghi nhận
         }
         else
         {
@@ -105,9 +139,8 @@ public class PlayerSimpleMovement : MonoBehaviour
     /// </summary>
     private void GatherInput()
     {
-        float x = Input.GetAxisRaw("Horizontal");
-        float z = Input.GetAxisRaw("Vertical");
-        inputDirection = new Vector3(x, 0f, z).normalized;
+        // Đọc từ biến moveInput (được cập nhật bởi OnMove callback)
+        inputDirection = new Vector3(moveInput.x, 0f, moveInput.y).normalized;
 
         if (anim != null)
         {
