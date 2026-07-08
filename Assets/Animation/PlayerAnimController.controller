@@ -185,6 +185,12 @@ AnimatorController:
     m_DefaultInt: 0
     m_DefaultBool: 0
     m_Controller: {fileID: 9100000}
+  - m_Name: Velocity
+    m_Type: 1
+    m_DefaultFloat: 0
+    m_DefaultInt: 0
+    m_DefaultBool: 0
+    m_Controller: {fileID: 9100000}
   m_AnimatorLayers:
   - serializedVersion: 5
     m_Name: Base Layer
@@ -212,7 +218,7 @@ AnimatorStateMachine:
     m_Position: {x: 250, y: -70, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 3471356157512055190}
-    m_Position: {x: 490, y: 50, z: 0}
+    m_Position: {x: 540, y: -70, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 3440076154420920755}
     m_Position: {x: 330, y: 230, z: 0}

@@ -83,7 +83,6 @@ public class EnemyAI : MonoBehaviour
             // Nhấc điểm bắn tia lên ngang ngực (+1.0m) để tia luôn bắt đầu từ trên không khí đâm xuống
             Vector3 rayOriginDown = transform.position + Vector3.up * 1f;
 
-            // Bắn tia dò tìm tọa độ mặt đất (dài 3 mét)
             if (Physics.Raycast(rayOriginDown, Vector3.down, out RaycastHit groundHit, 3f))
             {
                 // Độ cao chuẩn = Điểm sàn nhà (groundHit.point.y) + 1.0m (Khoảng cách từ gót chân lên tâm quái)
@@ -95,14 +94,19 @@ public class EnemyAI : MonoBehaviour
                     transform.position = new Vector3(transform.position.x, correctY, transform.position.z);
                     isGrounded = true;
                 }
-                else if (transform.position.y > correctY + 0.1f)
+                else if (transform.position.y > correctY && transform.position.y <= correctY + 0.6f)
                 {
-                    // Đang lơ lửng trên không -> Cho rơi tiếp
+                    // ĐI XUỐNG DỐC: Ép bám sát mặt đất ngay lập tức để không bị rớt tự do gây giật lag
+                    transform.position = new Vector3(transform.position.x, correctY, transform.position.z);
+                    isGrounded = true;
+                }
+                else if (transform.position.y > correctY + 0.6f)
+                {
+                    // Nhảy vực hoặc rơi từ trên quá cao -> Cho rơi tự do
                     isGrounded = false;
                 }
                 else
                 {
-                    // Đang đứng vững trên mặt đất
                     isGrounded = true;
                 }
             }

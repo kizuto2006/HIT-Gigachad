@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.Pool;
 
 public class EnemySpawn : MonoBehaviour
@@ -53,11 +53,16 @@ public class EnemySpawn : MonoBehaviour
         // Lấy khoảng cách ngẫu nhiên từ 15m đến 25m
         float randomDist = Random.Range(15f, spawnRadius);
 
-        Vector3 spawnPos = new Vector3(
-            playerTransform.position.x + randomDir.x * randomDist,
-            1.5f,
-            playerTransform.position.z + randomDir.y * randomDist
-        );
+        float spawnX = playerTransform.position.x + randomDir.x * randomDist;
+        float spawnZ = playerTransform.position.z + randomDir.y * randomDist;
+        float spawnY = 1.0f;
+        
+        if (Terrain.activeTerrain != null)
+        {
+            spawnY = Terrain.activeTerrain.SampleHeight(new Vector3(spawnX, 0, spawnZ)) + Terrain.activeTerrain.transform.position.y + 1.0f;
+        }
+
+        Vector3 spawnPos = new Vector3(spawnX, spawnY, spawnZ);
 
         enemy.transform.position = spawnPos;
     }
