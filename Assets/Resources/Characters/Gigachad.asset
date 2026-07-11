@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 387b6ffb4083a22a097c7fd41f66eab9, type: 3}
+  m_Name: Gigachad
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterData
+  characterName: Gigachad
+  description: "Ph\xF2ng th\u1EE7 cao, ch\u1ECBu \u0111\xF2n t\u1ED1t. Di chuy\u1EC3n
+    ch\u1EADm, nh\u1EA3y th\u1EA5p."
+  baseHp: 150
+  baseShield: 30
+  baseAtk: 10
+  baseProjSpeed: 18
+  baseProjCount: 1
+  baseSpeed: 6
+  jumpHeight: 1.8
+  baseDef: 0.35
