@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+[RequireComponent(typeof(PlayerInput))]
 public class PlayerSimpleMovement : MonoBehaviour
 {
     [Header("Components")]
@@ -31,7 +32,7 @@ public class PlayerSimpleMovement : MonoBehaviour
     private bool isGrounded;
     private Vector3 inputDirection;
 
-    // Input System: lưu giá trị input từ callback
+    // Input System (Invoke Unity Events mode): lưu giá trị input từ callback
     private Vector2 moveInput;
     private bool jumpPressed;
 
@@ -156,7 +157,9 @@ public class PlayerSimpleMovement : MonoBehaviour
     {
         if (inputDirection.magnitude < 0.1f) return;
 
-        float targetAngle = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg + cam.eulerAngles.y;
+        // Bug fix: fallback nếu cam là null (tránh NullReferenceException)
+        float camYAngle = (cam != null) ? cam.eulerAngles.y : transform.eulerAngles.y;
+        float targetAngle = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg + camYAngle;
 
         float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
         transform.rotation = Quaternion.Euler(0f, angle, 0f);
@@ -182,6 +185,7 @@ public class PlayerSimpleMovement : MonoBehaviour
         // Reset cả hai để tránh nhảy nhiều lần
         jumpBufferCounter = 0f;
         coyoteTimeCounter = 0f;
+        jumpPressed = false;
     }
 
     /// <summary>

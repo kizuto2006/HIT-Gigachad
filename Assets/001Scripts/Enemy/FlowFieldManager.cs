@@ -76,9 +76,11 @@ public class FlowFieldManager : MonoBehaviour
         destinationCell.bestCost = 0;
 
         Queue<Cell> cellsToCheck = new Queue<Cell>();
-        cellsToCheck.Enqueue(destinationCell);
+        HashSet<Cell> visited = new HashSet<Cell>();
 
-        // VÒNG LẶP BFS ĐÃ ĐƯỢC KHÔI PHỤC
+        cellsToCheck.Enqueue(destinationCell);
+        visited.Add(destinationCell);
+
         while (cellsToCheck.Count > 0)
         {
             Cell currentCell = cellsToCheck.Dequeue();
@@ -86,10 +88,16 @@ public class FlowFieldManager : MonoBehaviour
 
             foreach (Cell neighbor in neighbors)
             {
-                if (neighbor.cost + currentCell.bestCost < neighbor.bestCost)
+                ushort newCost = (ushort)(neighbor.cost + currentCell.bestCost);
+                if (newCost < neighbor.bestCost)
                 {
-                    neighbor.bestCost = (ushort)(neighbor.cost + currentCell.bestCost);
-                    cellsToCheck.Enqueue(neighbor);
+                    neighbor.bestCost = newCost;
+
+                    if (!visited.Contains(neighbor))
+                    {
+                        cellsToCheck.Enqueue(neighbor);
+                        visited.Add(neighbor);
+                    }
                 }
             }
         }
