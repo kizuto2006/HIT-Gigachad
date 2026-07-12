@@ -26,3 +26,5 @@ MonoBehaviour:
   bonusProjCountFlat: 0
   baseSpeed: 6
   bonusSpeedPct: 0
+  baseJumpHeight: 1.8
+  bonusJumpHeightPct: 0

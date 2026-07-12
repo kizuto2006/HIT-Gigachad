@@ -29,6 +29,7 @@ public class PlayerBaseStats : ScriptableObject
         baseProjSpeed = characterData.baseProjSpeed;
         baseProjCount = characterData.baseProjCount;
         baseSpeed = characterData.baseSpeed;
+        baseJumpHeight = characterData.jumpHeight;
 
         Debug.Log($"[PlayerBaseStats] Đã import stats từ '{characterData.characterName}' thành công!");
 
@@ -84,6 +85,12 @@ public class PlayerBaseStats : ScriptableObject
     [Tooltip("Percentage bonus movement speed")]
     public float bonusSpeedPct = 0f;
 
+    [Space(5)]
+    [Tooltip("Base jump height imported from CharacterData")]
+    public float baseJumpHeight = 2.5f;
+    [Tooltip("Percentage bonus jump height (0.2 = +20%)")]
+    public float bonusJumpHeightPct = 0f;
+
     // ═══════════════════════════════════════════
     //  COMPUTED PROPERTIES
     // ═══════════════════════════════════════════
@@ -99,6 +106,9 @@ public class PlayerBaseStats : ScriptableObject
 
     /// <summary>baseSpeed * (1 + bonusSpeedPct)</summary>
     public float FinalSpeed => baseSpeed * (1f + bonusSpeedPct);
+
+    /// <summary>baseJumpHeight * (1 + bonusJumpHeightPct)</summary>
+    public float FinalJumpHeight => baseJumpHeight * (1f + bonusJumpHeightPct);
 
     /// <summary>baseProjSpeed * (1 + bonusProjSpeedPct)</summary>
     public float FinalProjSpeed => baseProjSpeed * (1f + bonusProjSpeedPct);

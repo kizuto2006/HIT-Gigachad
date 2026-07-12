@@ -1618,12 +1618,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
   controller: {fileID: 7425420400923495207}
-  moveSpeed: 5
+  playerStats: {fileID: 11400000, guid: 5ddfe57e98b0eee1f9031b94b9f39d9f, type: 2}
+  fallbackMoveSpeed: 5
+  fallbackJumpHeight: 1.8
+  groundAcceleration: 30
+  groundDeceleration: 15
+  groundBraking: 38
+  groundTurnSpeed: 270
+  reverseBrakingMultiplier: 1.6
+  turnSpeedLoss: 0.45
+  airAcceleration: 3
+  airTurnSpeed: 55
+  airBraking: 2
+  maxAirSpeedMultiplier: 1.1
   gravity: -20
-  jumpHeight: 2
-  turnSmoothTime: 0.1
+  speedJumpBonusMultiplier: 0
+  groundedStickForce: 2
+  groundRotationSpeed: 540
+  airRotationSpeed: 180
+  minimumRotationSpeed: 0.1
   coyoteTime: 0.15
   jumpBufferTime: 0.15
+  fallTimeThreshold: 0.3
 --- !u!114 &5752380046634795080
 MonoBehaviour:
   m_ObjectHideFlags: 0

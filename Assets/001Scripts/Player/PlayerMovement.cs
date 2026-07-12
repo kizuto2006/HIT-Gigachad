@@ -3,112 +3,164 @@ using UnityEngine.InputSystem;
 
 public class PlayerSimpleMovement : MonoBehaviour
 {
-    [Header("Components")]
-    public CharacterController controller;
-    private Transform cam;
+    [Header("── References ──")]
+    [SerializeField] private CharacterController controller;
+    [SerializeField] private PlayerBaseStats playerStats;
+    [Tooltip("Chỉ dùng khi PlayerBaseStats chưa được gán. Không phải nguồn tốc độ gameplay chính.")]
+    [SerializeField, Min(0f)] private float fallbackMoveSpeed = 5f;
+    [Tooltip("Chỉ dùng khi PlayerBaseStats chưa được gán. Không phải nguồn jump gameplay chính.")]
+    [SerializeField, Min(0f)] private float fallbackJumpHeight = 1.8f;
 
-    private Animator anim;
+    [Header("── Ground Momentum ──")]
+    [Tooltip("Gia tốc khi chạy cùng hướng hoặc bắt đầu di chuyển.")]
+    [SerializeField, Min(0f)] private float groundAcceleration = 30f;
+    [Tooltip("Ma sát giảm tốc khi thả input.")]
+    [SerializeField, Min(0f)] private float groundDeceleration = 15f;
+    [Tooltip("Lực phanh khi cua gấp hoặc đổi hướng.")]
+    [SerializeField, Min(0f)] private float groundBraking = 38f;
+    [Tooltip("Tốc độ tối đa mà hướng velocity có thể xoay trên mặt đất (độ/giây).")]
+    [SerializeField, Min(0f)] private float groundTurnSpeed = 270f;
+    [Tooltip("Nhân lực phanh khi input gần ngược với momentum hiện tại.")]
+    [SerializeField, Min(1f)] private float reverseBrakingMultiplier = 1.6f;
+    [Tooltip("Mức mất tốc khi cua. 0 không mất tốc, 1 dùng toàn bộ groundBraking theo góc cua.")]
+    [SerializeField, Range(0f, 1f)] private float turnSpeedLoss = 0.45f;
 
-    [Header("Movement Settings (Acceleration)")]
-    public float minMoveSpeed = 2f;
-    public float maxMoveSpeed = 10f;
-    public float accelerationTime = 1.0f;
-    public float decelerationTime = 0.2f;
-    private float currentSpeed;
-    private float speedVelocity;
+    [Header("── Air Momentum ──")]
+    [Tooltip("Gia tốc rất nhỏ được phép thêm khi đang trên không.")]
+    [SerializeField, Min(0f)] private float airAcceleration = 3f;
+    [Tooltip("Tốc độ tối đa mà hướng velocity có thể xoay trên không (độ/giây).")]
+    [SerializeField, Min(0f)] private float airTurnSpeed = 55f;
+    [Tooltip("Lực giảm momentum khi giữ input ngược hướng trên không.")]
+    [SerializeField, Min(0f)] private float airBraking = 2f;
+    [Tooltip("Giới hạn air speed so với FinalSpeed.")]
+    [SerializeField, Min(1f)] private float maxAirSpeedMultiplier = 1.1f;
 
-    [Header("Air Momentum & Jump")]
-    public float gravity = -25f;
-    public float baseJumpHeight = 2.5f;
-    public float maxBonusJumpHeight = 1.5f;
-    [Tooltip("Độ linh hoạt khi điều hướng trên không (1 = dễ như dưới đất, 0 = không thể bẻ lái)")]
-    [Range(0f, 1f)] public float airControlMultiplier = 0.5f;
-    private Vector3 currentMoveVelocity;
+    [Header("── Vertical Movement ──")]
+    [SerializeField] private float gravity = -20f;
+    [Tooltip("Bonus jump theo tỷ lệ tốc độ hiện tại. Mặc định 0 để jump chỉ do stats quyết định.")]
+    [SerializeField, Min(0f)] private float speedJumpBonusMultiplier = 0f;
+    [Tooltip("Vận tốc nhỏ hướng xuống giúp CharacterController bám mặt đất.")]
+    [SerializeField, Min(0f)] private float groundedStickForce = 2f;
 
-    [Header("Rotation Settings")]
-    public float turnSmoothTime = 0.05f;
-    private float turnSmoothVelocity;
+    [Header("── Rotation ──")]
+    [SerializeField, Min(0f)] private float groundRotationSpeed = 540f;
+    [SerializeField, Min(0f)] private float airRotationSpeed = 180f;
+    [SerializeField, Min(0f)] private float minimumRotationSpeed = 0.1f;
 
-    [Header("Jump Assist")]
-    [Tooltip("Thời gian cho phép nhảy sau khi rời mặt đất")]
-    public float coyoteTime = 0.15f;
-    [Tooltip("Thời gian ghi nhớ input nhảy trước khi chạm đất")]
-    public float jumpBufferTime = 0.15f;
-    [Tooltip("Thời gian ở trên không trước khi chuyển sang trạng thái rơi (Falling)")]
-    public float fallTimeThreshold = 0.3f;
+    [Header("── Jump Assist ──")]
+    [Tooltip("Thời gian cho phép nhảy sau khi rời mặt đất.")]
+    [SerializeField, Min(0f)] private float coyoteTime = 0.15f;
+    [Tooltip("Thời gian ghi nhớ input nhảy trước khi chạm đất.")]
+    [SerializeField, Min(0f)] private float jumpBufferTime = 0.15f;
+    [Tooltip("Thời gian ở trên không trước khi bật trạng thái Falling.")]
+    [SerializeField, Min(0f)] private float fallTimeThreshold = 0.3f;
 
+    private static readonly int SpeedHash = Animator.StringToHash("Speed");
+    private static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
+    private static readonly int IsFallingHash = Animator.StringToHash("IsFalling");
+    private static readonly int VelocityYHash = Animator.StringToHash("VelocityY");
+    private static readonly int JumpHash = Animator.StringToHash("Jump");
+
+    private Transform cameraTransform;
+    private Animator animator;
+    private Vector2 moveInput;
+    private Vector3 horizontalVelocity;
+    private float verticalVelocity;
     private float coyoteTimeCounter;
     private float jumpBufferCounter;
     private float airTimeCounter;
-
-    private Vector3 velocity;
     private bool isGrounded;
-    private Vector3 inputDirection;
-
-    // Input System: lưu giá trị input từ callback
-    private Vector2 moveInput;
     private bool jumpPressed;
-
+    private bool hasSpeedParam;
+    private bool hasIsGroundedParam;
     private bool hasIsFallingParam;
     private bool hasVelocityYParam;
+    private bool hasJumpParam;
 
-    void Start()
+    private float CurrentMoveSpeed => playerStats != null
+        ? Mathf.Max(0f, playerStats.FinalSpeed)
+        : fallbackMoveSpeed;
+
+    private float CurrentJumpHeight => playerStats != null
+        ? Mathf.Max(0f, playerStats.FinalJumpHeight)
+        : fallbackJumpHeight;
+
+    private void Awake()
+    {
+        if (controller == null)
+        {
+            controller = GetComponent<CharacterController>();
+        }
+
+        if (playerStats == null)
+        {
+            PlayerHealth health = GetComponent<PlayerHealth>();
+            if (health != null)
+            {
+                playerStats = health.stats;
+            }
+        }
+
+        cameraTransform = Camera.main != null ? Camera.main.transform : null;
+        animator = GetComponentInChildren<Animator>();
+        CacheAnimatorParameters();
+
+        if (controller == null)
+        {
+            Debug.LogError("[PlayerMovement] CharacterController chưa được gán.", this);
+            enabled = false;
+            return;
+        }
+
+        if (playerStats == null)
+        {
+            Debug.LogWarning("[PlayerMovement] PlayerBaseStats chưa được gán; đang dùng fallback speed/jump.", this);
+        }
+
+        if (cameraTransform == null)
+        {
+            Debug.LogWarning("[PlayerMovement] Không tìm thấy Main Camera; input sẽ dùng hướng world-space.", this);
+        }
+    }
+
+    private void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+    }
 
-        if (Camera.main != null)
+    private void Update()
+    {
+        float deltaTime = Time.deltaTime;
+
+        UpdateGroundState(deltaTime);
+        UpdateJumpTimers(deltaTime);
+
+        Vector3 desiredDirection = GetCameraRelativeInput();
+        if (isGrounded)
         {
-            cam = Camera.main.transform;
+            UpdateGroundVelocity(desiredDirection, deltaTime);
+        }
+        else
+        {
+            UpdateAirVelocity(desiredDirection, deltaTime);
         }
 
-        anim = GetComponentInChildren<Animator>();
-        CheckAnimatorParameters();
+        TryJump();
+        ApplyGravity(deltaTime);
+        UpdateRotation(deltaTime);
+
+        Vector3 frameVelocity = horizontalVelocity + Vector3.up * verticalVelocity;
+        controller.Move(frameVelocity * deltaTime);
+
+        UpdateAnimator();
     }
 
-    private void CheckAnimatorParameters()
-    {
-        if (anim != null)
-        {
-            foreach (AnimatorControllerParameter param in anim.parameters)
-            {
-                if (param.name == "IsFalling") hasIsFallingParam = true;
-                if (param.name == "VelocityY") hasVelocityYParam = true;
-            }
-        }
-    }
-
-    void Update()
-    {
-        GatherInput();
-        HandleCoyoteTime();
-        HandleJumpBuffer();
-    }
-
-    void FixedUpdate()
-    {
-        HandleGroundCheck();
-        HandleMovementAndRotation();
-        HandleJump();
-        ApplyGravity();
-    }
-
-    // =============================================
-    // INPUT SYSTEM CALLBACKS (PlayerInput - Invoke Unity Events)
-    // Kéo thả trong Inspector của PlayerInput component
-    // =============================================
-
-    /// <summary>
-    /// Gán vào PlayerInput > Events > Player > Move
-    /// </summary>
     public void OnMove(InputAction.CallbackContext context)
     {
-        moveInput = context.ReadValue<Vector2>();
+        moveInput = Vector2.ClampMagnitude(context.ReadValue<Vector2>(), 1f);
     }
 
-    /// <summary>
-    /// Gán vào PlayerInput > Events > Player > Jump
-    /// </summary>
     public void OnJump(InputAction.CallbackContext context)
     {
         if (context.performed)
@@ -117,175 +169,235 @@ public class PlayerSimpleMovement : MonoBehaviour
         }
     }
 
-    // =============================================
-    // MOVEMENT LOGIC (giữ nguyên logic cũ)
-    // =============================================
+    private void CacheAnimatorParameters()
+    {
+        if (animator == null)
+        {
+            return;
+        }
 
-    /// <summary>
-    /// Kiểm tra nhân vật có đang chạm đất không và reset velocity.y
-    /// </summary>
-    private void HandleGroundCheck()
+        foreach (AnimatorControllerParameter parameter in animator.parameters)
+        {
+            int hash = parameter.nameHash;
+            if (hash == SpeedHash) hasSpeedParam = true;
+            else if (hash == IsGroundedHash) hasIsGroundedParam = true;
+            else if (hash == IsFallingHash) hasIsFallingParam = true;
+            else if (hash == VelocityYHash) hasVelocityYParam = true;
+            else if (hash == JumpHash) hasJumpParam = true;
+        }
+    }
+
+    private void UpdateGroundState(float deltaTime)
     {
         isGrounded = controller.isGrounded;
+
         if (isGrounded)
         {
-            if (velocity.y < 0)
-            {
-                velocity.y = -2f;
-            }
             airTimeCounter = 0f;
+            if (verticalVelocity < 0f)
+            {
+                verticalVelocity = -groundedStickForce;
+            }
         }
         else
         {
-            airTimeCounter += Time.fixedDeltaTime;
+            airTimeCounter += deltaTime;
         }
     }
 
-    /// <summary>
-    /// Coyote Time: cho phép nhảy trong khoảng thời gian ngắn sau khi rời mặt đất
-    /// </summary>
-    private void HandleCoyoteTime()
+    private void UpdateJumpTimers(float deltaTime)
     {
-        if (isGrounded)
-        {
-            coyoteTimeCounter = coyoteTime;
-        }
-        else
-        {
-            coyoteTimeCounter -= Time.deltaTime;
-        }
-    }
+        coyoteTimeCounter = isGrounded
+            ? coyoteTime
+            : Mathf.Max(0f, coyoteTimeCounter - deltaTime);
 
-    /// <summary>
-    /// Jump Buffer: ghi nhớ input nhảy trước khi chạm đất
-    /// </summary>
-    private void HandleJumpBuffer()
-    {
         if (jumpPressed)
         {
             jumpBufferCounter = jumpBufferTime;
-            jumpPressed = false; // reset flag sau khi đã ghi nhận
+            jumpPressed = false;
         }
         else
         {
-            jumpBufferCounter -= Time.deltaTime;
+            jumpBufferCounter = Mathf.Max(0f, jumpBufferCounter - deltaTime);
         }
     }
 
-    /// <summary>
-    /// Thu thập input di chuyển và cập nhật animation
-    /// </summary>
-    private void GatherInput()
+    private Vector3 GetCameraRelativeInput()
     {
-        // Đọc từ biến moveInput (được cập nhật bởi OnMove callback)
-        inputDirection = new Vector3(moveInput.x, 0f, moveInput.y).normalized;
-
-        if (anim != null)
+        if (moveInput.sqrMagnitude < 0.0001f)
         {
-            // Truyền currentSpeed / maxMoveSpeed (0 đến 1) để blend animation mượt hơn
-            float speedPercent = maxMoveSpeed > 0f ? currentSpeed / maxMoveSpeed : 0f;
-            anim.SetFloat("Speed", speedPercent);
-            anim.SetBool("IsGrounded", isGrounded);
-            
-            // Xử lý animation rơi (Falling)
-            if (hasIsFallingParam)
-            {
-                anim.SetBool("IsFalling", airTimeCounter >= fallTimeThreshold);
-            }
-            if (hasVelocityYParam)
-            {
-                anim.SetFloat("VelocityY", velocity.y); // Hỗ trợ thêm cho Blend Tree nếu cần
-            }
+            return Vector3.zero;
         }
+
+        Vector3 forward = cameraTransform != null ? cameraTransform.forward : Vector3.forward;
+        Vector3 right = cameraTransform != null ? cameraTransform.right : Vector3.right;
+        forward.y = 0f;
+        right.y = 0f;
+        forward.Normalize();
+        right.Normalize();
+
+        return Vector3.ClampMagnitude(forward * moveInput.y + right * moveInput.x, 1f);
     }
 
-    /// <summary>
-    /// Xử lý di chuyển và xoay nhân vật theo hướng camera
-    /// </summary>
-    private void HandleMovementAndRotation()
+    private void UpdateGroundVelocity(Vector3 desiredDirection, float deltaTime)
     {
-        if (inputDirection.magnitude >= 0.1f)
+        float currentSpeed = horizontalVelocity.magnitude;
+        if (desiredDirection.sqrMagnitude < 0.0001f)
         {
-            // Xoay nhân vật theo hướng di chuyển (cả trên đất và trên không)
-            float targetAngle = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg + cam.eulerAngles.y;
-            float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
-            transform.rotation = Quaternion.Euler(0f, angle, 0f);
+            float newSpeed = Mathf.MoveTowards(currentSpeed, 0f, groundDeceleration * deltaTime);
+            horizontalVelocity = currentSpeed > 0.0001f
+                ? horizontalVelocity * (newSpeed / currentSpeed)
+                : Vector3.zero;
+            return;
+        }
 
-            Vector3 targetMoveDir = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
+        float targetSpeed = CurrentMoveSpeed * desiredDirection.magnitude;
+        if (currentSpeed < 0.0001f)
+        {
+            horizontalVelocity = Vector3.MoveTowards(
+                Vector3.zero,
+                desiredDirection.normalized * targetSpeed,
+                groundAcceleration * deltaTime);
+            return;
+        }
 
-            if (isGrounded)
-            {
-                // Dưới đất: Tăng tốc bình thường
-                currentSpeed = Mathf.SmoothDamp(currentSpeed, maxMoveSpeed, ref speedVelocity, accelerationTime);
-                currentMoveVelocity = targetMoveDir.normalized * currentSpeed;
-            }
-            else
-            {
-                // Trên không: Vẫn cho phép lấy thêm tốc độ (nếu nhảy tại chỗ rồi mới bấm đi tới)
-                currentSpeed = Mathf.SmoothDamp(currentSpeed, maxMoveSpeed, ref speedVelocity, accelerationTime);
-                Vector3 targetAirVelocity = targetMoveDir.normalized * currentSpeed;
+        Vector3 currentDirection = horizontalVelocity / currentSpeed;
+        Vector3 targetDirection = desiredDirection.normalized;
+        float directionDot = Vector3.Dot(currentDirection, targetDirection);
 
-                // Dùng Lerp để bẻ lái mượt mà trên không dựa vào airControlMultiplier
-                float lerpSpeed = Mathf.Lerp(1f, 15f, airControlMultiplier);
-                currentMoveVelocity = Vector3.Lerp(currentMoveVelocity, targetAirVelocity, lerpSpeed * Time.fixedDeltaTime);
-            }
+        if (directionDot < -0.25f)
+        {
+            float reverseBrake = groundBraking * reverseBrakingMultiplier;
+            float newSpeed = Mathf.MoveTowards(currentSpeed, 0f, reverseBrake * deltaTime);
+            horizontalVelocity = newSpeed > 0f ? currentDirection * newSpeed : Vector3.zero;
+            return;
+        }
+
+        Vector3 turnedDirection = Vector3.RotateTowards(
+            currentDirection,
+            targetDirection,
+            groundTurnSpeed * Mathf.Deg2Rad * deltaTime,
+            0f).normalized;
+
+        float turnAmount = 1f - Mathf.Clamp01(directionDot);
+        float acceleratedSpeed = Mathf.MoveTowards(
+            currentSpeed,
+            targetSpeed,
+            groundAcceleration * deltaTime);
+        float speedAfterTurn = Mathf.MoveTowards(
+            acceleratedSpeed,
+            0f,
+            groundBraking * turnSpeedLoss * turnAmount * deltaTime);
+
+        horizontalVelocity = turnedDirection * speedAfterTurn;
+    }
+
+    private void UpdateAirVelocity(Vector3 desiredDirection, float deltaTime)
+    {
+        if (desiredDirection.sqrMagnitude < 0.0001f)
+        {
+            return;
+        }
+
+        float currentSpeed = horizontalVelocity.magnitude;
+        float maxAirSpeed = CurrentMoveSpeed * maxAirSpeedMultiplier;
+        Vector3 targetDirection = desiredDirection.normalized;
+
+        if (currentSpeed < 0.0001f)
+        {
+            horizontalVelocity = Vector3.MoveTowards(
+                Vector3.zero,
+                targetDirection * maxAirSpeed,
+                airAcceleration * deltaTime);
+            return;
+        }
+
+        Vector3 currentDirection = horizontalVelocity / currentSpeed;
+        float directionDot = Vector3.Dot(currentDirection, targetDirection);
+        Vector3 turnedDirection = Vector3.RotateTowards(
+            currentDirection,
+            targetDirection,
+            airTurnSpeed * Mathf.Deg2Rad * deltaTime,
+            0f).normalized;
+
+        float newSpeed = currentSpeed;
+        if (directionDot > 0f)
+        {
+            newSpeed = Mathf.MoveTowards(
+                currentSpeed,
+                maxAirSpeed,
+                airAcceleration * directionDot * deltaTime);
         }
         else
         {
-            if (isGrounded)
-            {
-                // Dưới đất không input: Giảm tốc dần về 0
-                currentSpeed = Mathf.SmoothDamp(currentSpeed, 0f, ref speedVelocity, decelerationTime);
-                if (currentSpeed < 0.1f) currentSpeed = 0f;
-
-                if (currentMoveVelocity.magnitude > 0.1f)
-                {
-                    currentMoveVelocity = currentMoveVelocity.normalized * currentSpeed;
-                }
-                else
-                {
-                    currentMoveVelocity = Vector3.zero;
-                }
-            }
-            else
-            {
-                // Trên không không input: Bảo toàn đà trượt (quán tính)
-                // (Giữ nguyên currentMoveVelocity)
-            }
+            newSpeed = Mathf.MoveTowards(
+                currentSpeed,
+                0f,
+                airBraking * -directionDot * deltaTime);
         }
 
-        controller.Move(currentMoveVelocity * Time.fixedDeltaTime);
+        horizontalVelocity = turnedDirection * Mathf.Min(newSpeed, maxAirSpeed);
     }
 
-    /// <summary>
-    /// Xử lý nhảy với coyote time và jump buffer
-    /// </summary>
-    private void HandleJump()
+    private void TryJump()
     {
-        if (jumpBufferCounter <= 0f || coyoteTimeCounter <= 0f) return;
-
-        // Cơ chế nhảy phụ thuộc vào tốc độ: Tốc độ càng cao, nhảy càng cao (và bay xa nhờ quán tính currentMoveVelocity)
-        float speedRatio = maxMoveSpeed > 0f ? Mathf.Clamp01(currentSpeed / maxMoveSpeed) : 0f;
-        float actualJumpHeight = baseJumpHeight + (maxBonusJumpHeight * speedRatio);
-
-        velocity.y = Mathf.Sqrt(actualJumpHeight * -2f * gravity);
-
-        if (anim != null)
+        if (jumpBufferCounter <= 0f || coyoteTimeCounter <= 0f)
         {
-            anim.SetTrigger("Jump");
+            return;
         }
 
-        // Reset cả hai để tránh nhảy nhiều lần
+        float finalSpeed = CurrentMoveSpeed;
+        float normalizedSpeed = finalSpeed > 0f
+            ? Mathf.Clamp01(horizontalVelocity.magnitude / finalSpeed)
+            : 0f;
+        float jumpHeight = CurrentJumpHeight * (1f + speedJumpBonusMultiplier * normalizedSpeed);
+
+        verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
         jumpBufferCounter = 0f;
         coyoteTimeCounter = 0f;
+        isGrounded = false;
+
+        if (animator != null && hasJumpParam)
+        {
+            animator.SetTrigger(JumpHash);
+        }
     }
 
-    /// <summary>
-    /// Áp dụng trọng lực và di chuyển theo trục Y
-    /// </summary>
-    private void ApplyGravity()
+    private void ApplyGravity(float deltaTime)
     {
-        velocity.y += gravity * Time.fixedDeltaTime;
-        controller.Move(velocity * Time.fixedDeltaTime);
+        verticalVelocity += gravity * deltaTime;
+    }
+
+    private void UpdateRotation(float deltaTime)
+    {
+        if (horizontalVelocity.sqrMagnitude < minimumRotationSpeed * minimumRotationSpeed)
+        {
+            return;
+        }
+
+        Quaternion targetRotation = Quaternion.LookRotation(horizontalVelocity.normalized, Vector3.up);
+        float rotationSpeed = isGrounded ? groundRotationSpeed : airRotationSpeed;
+        transform.rotation = Quaternion.RotateTowards(
+            transform.rotation,
+            targetRotation,
+            rotationSpeed * deltaTime);
+    }
+
+    private void UpdateAnimator()
+    {
+        if (animator == null)
+        {
+            return;
+        }
+
+        float finalSpeed = CurrentMoveSpeed;
+        float speedPercent = finalSpeed > 0f
+            ? Mathf.Clamp01(horizontalVelocity.magnitude / finalSpeed)
+            : 0f;
+
+        if (hasSpeedParam) animator.SetFloat(SpeedHash, speedPercent);
+        if (hasIsGroundedParam) animator.SetBool(IsGroundedHash, isGrounded);
+        if (hasIsFallingParam) animator.SetBool(IsFallingHash, airTimeCounter >= fallTimeThreshold);
+        if (hasVelocityYParam) animator.SetFloat(VelocityYHash, verticalVelocity);
     }
 }

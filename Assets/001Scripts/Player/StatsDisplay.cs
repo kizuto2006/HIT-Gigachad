@@ -12,7 +12,7 @@ public class StatsDisplay : MonoBehaviour
 
     [Header("── Display Settings ──")]
     [Tooltip("Bật/tắt hiển thị panel stats trên màn hình Game")]
-    public bool showOnScreen = true;
+    public bool showOnScreen = false;
 
     [Header("── Runtime Stats (Chỉ xem) ──")]
     [SerializeField] private string characterName;
@@ -22,6 +22,7 @@ public class StatsDisplay : MonoBehaviour
     [SerializeField] private float maxShield;
     [SerializeField] private float finalAtk;
     [SerializeField] private float finalSpeed;
+    [SerializeField] private float finalJumpHeight;
     [SerializeField] private float finalProjSpeed;
     [SerializeField] private int finalProjCount;
 
@@ -48,6 +49,7 @@ public class StatsDisplay : MonoBehaviour
         maxShield = stats.FinalShield;
         finalAtk = stats.FinalAtk;
         finalSpeed = stats.FinalSpeed;
+        finalJumpHeight = stats.FinalJumpHeight;
         finalProjSpeed = stats.FinalProjSpeed;
         finalProjCount = stats.FinalProjCount;
 
@@ -98,7 +100,7 @@ public class StatsDisplay : MonoBehaviour
         InitStyles();
 
         float panelWidth = 260f;
-        float panelHeight = 200f;
+        float panelHeight = 220f;
         float margin = 10f;
 
         Rect panelRect = new Rect(margin, margin, panelWidth, panelHeight);
@@ -127,6 +129,7 @@ public class StatsDisplay : MonoBehaviour
         // Các stats khác
         GUILayout.Label($"<color=#FF9966>ATK:</color>  {stats.FinalAtk:F1}", labelStyle);
         GUILayout.Label($"<color=#66FFCC>SPD:</color>  {stats.FinalSpeed:F1}", labelStyle);
+        GUILayout.Label($"<color=#99CCFF>JUMP:</color> {stats.FinalJumpHeight:F1}", labelStyle);
         GUILayout.Label($"<color=#CCCCFF>Proj:</color>  {stats.FinalProjCount}  |  <color=#CCCCFF>ProjSpd:</color> {stats.FinalProjSpeed:F1}", labelStyle);
 
         GUILayout.EndArea();
