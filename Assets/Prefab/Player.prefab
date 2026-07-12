@@ -1621,21 +1621,28 @@ MonoBehaviour:
   playerStats: {fileID: 11400000, guid: 5ddfe57e98b0eee1f9031b94b9f39d9f, type: 2}
   fallbackMoveSpeed: 5
   fallbackJumpHeight: 1.8
-  groundAcceleration: 30
-  groundDeceleration: 15
-  groundBraking: 38
-  groundTurnSpeed: 270
-  reverseBrakingMultiplier: 1.6
-  turnSpeedLoss: 0.45
-  airAcceleration: 3
-  airTurnSpeed: 55
-  airBraking: 2
-  maxAirSpeedMultiplier: 1.1
+  groundAcceleration: 50
+  groundDeceleration: 24
+  groundBraking: 55
+  groundTurnSpeed: 720
+  reverseBrakingMultiplier: 1.4
+  turnSpeedLoss: 0.1
+  airForwardAcceleration: 0.5
+  airLateralAcceleration: 0.35
+  airCounterMomentumBraking: 1.5
+  maximumAirDirectionInfluence: 0.05
+  normalJumpMomentumRetention: 0.45
+  bunnyHopMomentumRetention: 0.8
+  enableBunnyHop: 1
+  bunnyHopWindow: 0.12
+  bunnyHopSpeedBoost: 0.75
+  bunnyHopMaxSpeedMultiplier: 1.15
+  minimumAirTimeForBunnyHop: 0.1
   gravity: -20
   speedJumpBonusMultiplier: 0
   groundedStickForce: 2
-  groundRotationSpeed: 540
-  airRotationSpeed: 180
+  groundRotationSpeed: 720
+  airRotationSpeed: 540
   minimumRotationSpeed: 0.1
   coyoteTime: 0.15
   jumpBufferTime: 0.15
