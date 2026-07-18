@@ -22,8 +22,8 @@ public class EnemySpawn : MonoBehaviour
     void Start()
     {
         enemyPool = new ObjectPool<GameObject>(
-            createFunc: () => Instantiate(enemyPrefab, enemyContainer),
-            actionOnGet: (enemy) => enemy.SetActive(true),
+            createFunc: CreatePooledEnemy,
+            actionOnGet: ActivatePooledEnemy,
             actionOnRelease: (enemy) => enemy.SetActive(false),
             actionOnDestroy: (enemy) => Destroy(enemy),
             collectionCheck: false,
@@ -33,6 +33,27 @@ public class EnemySpawn : MonoBehaviour
 
         // Gọi hàm spawn liên tục
         InvokeRepeating(nameof(SpawnEnemy), 1f, 1f / enemiesPerSecond);
+    }
+
+    private GameObject CreatePooledEnemy()
+    {
+        GameObject enemy = Instantiate(enemyPrefab, enemyContainer);
+        enemy.SetActive(false);
+
+        EnemyHealth health = enemy.GetComponent<EnemyHealth>();
+        if (health != null)
+            health.SetSpawner(this);
+
+        return enemy;
+    }
+
+    private void ActivatePooledEnemy(GameObject enemy)
+    {
+        EnemyHealth health = enemy.GetComponent<EnemyHealth>();
+        if (health != null)
+            health.SetSpawner(this);
+
+        enemy.SetActive(true);
     }
 
     void Update()
@@ -69,7 +90,8 @@ public class EnemySpawn : MonoBehaviour
 
     public void ReturnEnemyToPool(GameObject enemy)
     {
-        enemyPool.Release(enemy);
+        if (enemyPool != null && enemy.activeSelf)
+            enemyPool.Release(enemy);
     }
 
     // --- HÀM VẼ GIAO DIỆN NHANH LÊN MÀN HÌNH GAME ---

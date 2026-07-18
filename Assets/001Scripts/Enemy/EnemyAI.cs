@@ -17,6 +17,8 @@ public class EnemyAI : MonoBehaviour
     {
         isClimbing = false;
         isGrounded = true;
+        hasLineOfSight = false;
+        currentCell = null;
         // Lệch nhịp tia laser để giảm tải CPU
         losTimer = Random.Range(0f, 0.2f);
         raycastTimer = Random.Range(0f, 0.06f);
@@ -35,6 +37,8 @@ public class EnemyAI : MonoBehaviour
         // (Tùy chọn) Xóa tên khỏi ô lưới cũ nếu FlowFieldManager vẫn còn dùng
         if (currentCell != null)
             currentCell.enemiesInThisCell.Remove(this.transform);
+
+        currentCell = null;
     }
 
     // --- HÀM NÀY CUNG CẤP DỮ LIỆU HƯỚNG ĐI CHO MANAGER ---

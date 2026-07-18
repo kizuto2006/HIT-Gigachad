@@ -17,7 +17,12 @@ public class EnemyContactDamage : MonoBehaviour
     private PlayerHealth playerHealth;
     private float lastDamageTime = -999f;
 
-    void Start()
+    private void OnEnable()
+    {
+        lastDamageTime = -999f;
+    }
+
+    private void Start()
     {
         // Tìm PlayerHealth qua tag "Player"
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
@@ -33,6 +38,11 @@ public class EnemyContactDamage : MonoBehaviour
     }
 
     void OnTriggerStay(Collider other)
+    {
+        HandleTriggerStay(other);
+    }
+
+    public void HandleTriggerStay(Collider other)
     {
         if (playerHealth == null) return;
         if (!other.CompareTag("Player")) return;
@@ -50,6 +60,11 @@ public class EnemyContactDamage : MonoBehaviour
     /// Fallback: reset lastDamageTime khi enemy vừa chạm player lần đầu.
     /// </summary>
     void OnTriggerEnter(Collider other)
+    {
+        HandleTriggerEnter(other);
+    }
+
+    public void HandleTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Player")) return;
         if (data == null || playerHealth == null) return;
