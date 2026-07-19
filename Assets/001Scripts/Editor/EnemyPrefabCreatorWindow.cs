@@ -6,7 +6,7 @@ using UnityEngine;
 public sealed class EnemyPrefabCreatorWindow : EditorWindow
 {
     private const string MenuPath = "Tools/HIT-Gigachad/Enemy Prefab Creator";
-    private const string DefaultTemplatePath = "Assets/Prefab/Enemy.prefab";
+    private const string DefaultTemplatePath = "Assets/Prefab/Mummy.prefab";
 
     private EnemyPrefabCreationSettings settings;
     private EnemyPrefabValidationResult validation;
