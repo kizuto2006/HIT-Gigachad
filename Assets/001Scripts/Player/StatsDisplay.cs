@@ -18,8 +18,6 @@ public class StatsDisplay : MonoBehaviour
     [SerializeField] private string characterName;
     [SerializeField] private float currentHp;
     [SerializeField] private float maxHp;
-    [SerializeField] private float currentShield;
-    [SerializeField] private float maxShield;
     [SerializeField] private float finalAtk;
     [SerializeField] private float finalSpeed;
     [SerializeField] private float finalJumpHeight;
@@ -46,7 +44,6 @@ public class StatsDisplay : MonoBehaviour
 
         characterName = (stats.characterData != null) ? stats.characterData.characterName : "N/A";
         maxHp = stats.FinalHp;
-        maxShield = stats.FinalShield;
         finalAtk = stats.FinalAtk;
         finalSpeed = stats.FinalSpeed;
         finalJumpHeight = stats.FinalJumpHeight;
@@ -56,12 +53,10 @@ public class StatsDisplay : MonoBehaviour
         if (health != null)
         {
             currentHp = health.currentHp;
-            currentShield = health.currentShield;
         }
         else
         {
             currentHp = maxHp;
-            currentShield = maxShield;
         }
     }
 
@@ -118,11 +113,6 @@ public class StatsDisplay : MonoBehaviour
         float hp = (health != null) ? health.currentHp : stats.FinalHp;
         float hpMax = stats.FinalHp;
         DrawStatLine("HP", hp, hpMax, new Color(0.2f, 0.9f, 0.3f));
-
-        // Shield bar
-        float shield = (health != null) ? health.currentShield : stats.FinalShield;
-        float shieldMax = stats.FinalShield;
-        DrawStatLine("Shield", shield, shieldMax, new Color(0.3f, 0.7f, 1f));
 
         GUILayout.Space(4);
 

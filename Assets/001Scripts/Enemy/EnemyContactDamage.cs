@@ -13,8 +13,11 @@ public class EnemyContactDamage : MonoBehaviour
     [Header("── Contact Settings ──")]
     [Tooltip("Cooldown giữa các lần gây damage khi chạm liên tục (giây)")]
     public float damageCooldown = 1f;
+    [Tooltip("Lực đẩy lùi player khi chạm")]
+    public float knockbackForce = 15f;
 
     private PlayerHealth playerHealth;
+    private PlayerSimpleMovement playerMovement;
     private float lastDamageTime = -999f;
 
     private void OnEnable()
@@ -24,11 +27,11 @@ public class EnemyContactDamage : MonoBehaviour
 
     private void Start()
     {
-        // Tìm PlayerHealth qua tag "Player"
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null)
         {
             playerHealth = playerObj.GetComponent<PlayerHealth>();
+            playerMovement = playerObj.GetComponent<PlayerSimpleMovement>();
         }
 
         if (playerHealth == null)
@@ -52,6 +55,14 @@ public class EnemyContactDamage : MonoBehaviour
         {
             lastDamageTime = Time.time;
             playerHealth.TakeDamage(data.atk);
+            
+            if (playerMovement != null)
+            {
+                Vector3 dir = (playerHealth.transform.position - transform.position);
+                dir.y = 0f;
+                playerMovement.ApplyKnockback(dir.normalized * knockbackForce);
+            }
+            
             Debug.Log($"[Contact] {gameObject.name} dealt {data.atk:F1} damage to Player");
         }
     }
@@ -74,6 +85,14 @@ public class EnemyContactDamage : MonoBehaviour
         {
             lastDamageTime = Time.time;
             playerHealth.TakeDamage(data.atk);
+            
+            if (playerMovement != null)
+            {
+                Vector3 dir = (playerHealth.transform.position - transform.position);
+                dir.y = 0f;
+                playerMovement.ApplyKnockback(dir.normalized * knockbackForce);
+            }
+            
             Debug.Log($"[Contact] {gameObject.name} dealt {data.atk:F1} damage to Player (first hit)");
         }
     }

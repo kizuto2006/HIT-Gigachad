@@ -88,7 +88,7 @@ public class EnemyAI : MonoBehaviour
         if (allowLineOfSightRaycast && sqrDistance > 0.0001f)
         {
             hasLineOfSight = !Physics.Raycast(
-                transform.position - Vector3.up * 0.5f,
+                transform.position + Vector3.up * 0.5f,
                 directionToPlayer.normalized,
                 Mathf.Sqrt(sqrDistance),
                 flowField.obstacleLayer);
@@ -160,10 +160,10 @@ public class EnemyAI : MonoBehaviour
 
     private int UpdateGroundState()
     {
-        Vector3 rayOriginDown = transform.position + Vector3.up;
+        Vector3 rayOriginDown = transform.position + Vector3.up * 10f;
         if (TryGetGroundHit(rayOriginDown, out RaycastHit groundHit))
         {
-            float correctY = groundHit.point.y + 1f;
+            float correctY = groundHit.point.y;
 
             if (transform.position.y < correctY ||
                 (transform.position.y > correctY && transform.position.y <= correctY + 0.6f))
@@ -196,7 +196,7 @@ public class EnemyAI : MonoBehaviour
             return 0;
         }
 
-        Vector3 rayOriginForward = transform.position - Vector3.up * 0.5f - transform.forward * 0.5f;
+        Vector3 rayOriginForward = transform.position + Vector3.up * 0.5f - transform.forward * 0.5f;
         if (Physics.Raycast(rayOriginForward, transform.forward, out RaycastHit hit, 1.5f, flowField.obstacleLayer))
         {
             isClimbing = true;
@@ -226,7 +226,7 @@ public class EnemyAI : MonoBehaviour
             origin,
             Vector3.down,
             GroundHits,
-            3f,
+            20f,
             Physics.AllLayers,
             QueryTriggerInteraction.Ignore);
 
@@ -281,7 +281,7 @@ public class EnemyAI : MonoBehaviour
             return 0;
         }
 
-        Vector3 bottomRayOrigin = transform.position - Vector3.up * 0.9f - transform.forward * 0.5f;
+        Vector3 bottomRayOrigin = transform.position + Vector3.up * 0.1f - transform.forward * 0.5f;
         if (!Physics.Raycast(bottomRayOrigin, transform.forward, 1.5f, flowField.obstacleLayer))
         {
             transform.position += transform.forward * 0.8f + Vector3.up * 0.2f;

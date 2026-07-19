@@ -23,6 +23,11 @@ public class SurvivalHUD : MonoBehaviour
     [SerializeField] private TMP_Text experienceText;
     [SerializeField] private TMP_Text levelText;
     [SerializeField] private TMP_Text timerText;
+    
+    [Header("Health Bar Animation")]
+    [SerializeField, Min(1f)] private float healthFillAnimationSpeed = 10f;
+    private float targetHealthFill = 1f;
+    private float currentHealthFill = 1f;
     [SerializeField] private HUDItemSlot[] weaponSlots = new HUDItemSlot[2];
     [SerializeField] private HUDItemSlot[] tomeSlots = new HUDItemSlot[2];
 
@@ -36,6 +41,7 @@ public class SurvivalHUD : MonoBehaviour
     {
         ApplyDisplayFont();
         ConfigureExperienceBar();
+        ConfigureHealthBar();
 
         if (playerHealth == null)
             playerHealth = FindFirstObjectByType<PlayerHealth>();
@@ -51,6 +57,33 @@ public class SurvivalHUD : MonoBehaviour
 
         FindWeaponSlots();
         FindTomeSlots();
+    }
+
+    private void ConfigureHealthBar()
+    {
+        if (healthFill == null) return;
+
+        healthFill.type = Image.Type.Simple;
+        
+        RectTransform fillRect = healthFill.rectTransform;
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.pivot = new Vector2(0f, 0.5f);
+        fillRect.offsetMin = Vector2.zero;
+        fillRect.offsetMax = Vector2.zero;
+        SetHealthBarVisual(1f);
+    }
+
+    private void SetHealthBarVisual(float progress)
+    {
+        if (healthFill == null) return;
+
+        progress = Mathf.Clamp01(progress);
+        healthFill.fillAmount = progress;
+
+        RectTransform fillRect = healthFill.rectTransform;
+        fillRect.anchorMax = new Vector2(progress, 1f);
+        fillRect.offsetMin = Vector2.zero;
+        fillRect.offsetMax = Vector2.zero;
     }
 
     private void ConfigureExperienceBar()
@@ -135,6 +168,16 @@ public class SurvivalHUD : MonoBehaviour
         RefreshTimer();
         RefreshHealth();
         AnimateExperienceBar();
+        AnimateHealthBar();
+    }
+
+    private void AnimateHealthBar()
+    {
+        if (healthFill == null) return;
+        
+        float blend = 1f - Mathf.Exp(-healthFillAnimationSpeed * Time.unscaledDeltaTime);
+        currentHealthFill = Mathf.Lerp(currentHealthFill, targetHealthFill, blend);
+        SetHealthBarVisual(currentHealthFill);
     }
 
     private void AnimateExperienceBar()
@@ -174,11 +217,12 @@ public class SurvivalHUD : MonoBehaviour
         float maxHealth = Mathf.Max(1f, playerHealth.stats.FinalHp);
         float currentHealth = Mathf.Clamp(playerHealth.currentHp, 0f, maxHealth);
 
-        if (healthFill != null)
-            healthFill.fillAmount = currentHealth / maxHealth;
+        targetHealthFill = currentHealth / maxHealth;
 
         if (healthText != null)
+        {
             healthText.text = $"{Mathf.CeilToInt(currentHealth)} / {Mathf.CeilToInt(maxHealth)}";
+        }
     }
 
     private void RefreshExperience(bool immediate = false)

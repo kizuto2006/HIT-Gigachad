@@ -33,7 +33,7 @@ MonoBehaviour:
   knockbackMultiplier: 1
   baseSpeed: 3
   bonusSpeedPct: -0.05
-  baseJumpHeight: 8
+  baseJumpHeight: 1.5
   bonusJumpHeightPct: 0
   pickupRange: 5
   experienceMultiplier: 1

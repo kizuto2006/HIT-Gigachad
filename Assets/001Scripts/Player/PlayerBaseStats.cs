@@ -28,7 +28,6 @@ public class PlayerBaseStats : ScriptableObject
         }
 
         baseHp = characterData.baseHp;
-        baseShield = characterData.baseShield;
         armorReduction = characterData.baseDef;
         bonusAtkPct = characterData.damageMultiplier - 1f;
         criticalChance = characterData.criticalChance;
@@ -61,12 +60,6 @@ public class PlayerBaseStats : ScriptableObject
     public float bonusHpFlat = 0f;
     [Tooltip("Percentage bonus HP (0.2 = +20%)")]
     public float bonusHpPct = 0f;
-
-    [Space(5)]
-    [Tooltip("Base shield value")]
-    public float baseShield = 30f;
-    [Tooltip("Flat bonus shield")]
-    public float bonusShieldFlat = 0f;
 
     [Range(0f, 0.95f)]
     [Tooltip("Tỷ lệ giảm damage nhận vào.")]
@@ -128,9 +121,6 @@ public class PlayerBaseStats : ScriptableObject
 
     /// <summary>(baseHp + bonusHpFlat) * (1 + bonusHpPct)</summary>
     public float FinalHp => (baseHp + bonusHpFlat) * (1f + bonusHpPct);
-
-    /// <summary>baseShield + bonusShieldFlat</summary>
-    public float FinalShield => baseShield + bonusShieldFlat;
 
     /// <summary>baseAtk * (1 + bonusAtkPct)</summary>
     public float FinalAtk => baseAtk * FinalDamageMultiplier;

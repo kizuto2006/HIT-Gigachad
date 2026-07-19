@@ -270,8 +270,7 @@ internal static class EnemyPrefabCreatorUtility
 
             Collider rootCollider = ConfigureCollider(settings, root, visualContainer);
             SetLayerRecursively(root, root.layer);
-            SetScaleTarget(enemyHealth, visualContainer.transform);
-
+            
             if (rootCollider == null
                 && settings.colliderType != EnemyColliderType.UseExistingCollider
                 && settings.colliderType != EnemyColliderType.None)

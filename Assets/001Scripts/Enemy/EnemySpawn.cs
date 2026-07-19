@@ -218,13 +218,17 @@ public class EnemySpawn : MonoBehaviour
 
     private float GetGroundHeight(Vector3 position)
     {
-        if (Terrain.activeTerrain == null)
+        if (Terrain.activeTerrain != null)
         {
-            return 1f;
+            return Terrain.activeTerrain.SampleHeight(position) + Terrain.activeTerrain.transform.position.y;
         }
 
-        Terrain terrain = Terrain.activeTerrain;
-        return terrain.SampleHeight(position) + terrain.transform.position.y + 1f;
+        if (Physics.Raycast(new Vector3(position.x, 100f, position.z), Vector3.down, out RaycastHit hit, 200f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
+        {
+            return hit.point.y;
+        }
+
+        return 0f;
     }
 
     public void ReturnEnemyToPool(GameObject enemy)

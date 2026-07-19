@@ -9,7 +9,6 @@ public class CharacterData : ScriptableObject
 
     [Header("── Survival ──")]
     [Min(1f)] public float baseHp = 120f;
-    [Min(0f)] public float baseShield = 0f;
     [Tooltip("Tỷ lệ giảm damage nhận vào. 0.35 = giảm 35%.")]
     [Range(0f, 0.95f)] public float baseDef = 0f;
 

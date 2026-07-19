@@ -28,7 +28,7 @@ MonoBehaviour:
   durationMultiplier: 1
   knockbackMultiplier: 1
   moveSpeedMultiplier: 0.95
-  jumpHeight: 8
+  jumpHeight: 0.4
   pickupRange: 5
   experienceMultiplier: 1
   startingWeapon: {fileID: 11400000, guid: 401d413b2ba143c19e2f9d9c93141c19, type: 2}

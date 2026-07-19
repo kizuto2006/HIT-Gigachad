@@ -219,6 +219,17 @@ public class PlayerSimpleMovement : MonoBehaviour
         }
     }
 
+    public void ApplyKnockback(Vector3 force)
+    {
+        horizontalVelocity += new Vector3(force.x, 0f, force.z);
+        
+        if (force.y > 0f)
+        {
+            verticalVelocity = Mathf.Max(verticalVelocity, force.y);
+            isGrounded = false;
+        }
+    }
+
     private void CacheAnimatorParameters()
     {
         if (animator == null)

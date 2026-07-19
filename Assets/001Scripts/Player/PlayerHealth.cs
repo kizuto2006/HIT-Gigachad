@@ -6,26 +6,45 @@ public class PlayerHealth : MonoBehaviour
     [Header("── Stats Reference ──")]
     public PlayerBaseStats stats;
 
-    [Header("── Shield Regen ──")]
-    [Tooltip("Thời gian chờ sau khi nhận damage để shield bắt đầu hồi phục")]
-    public float shieldRegenDelay = 5f;
-    [Tooltip("Tốc độ hồi shield mỗi giây (0 = hồi tức thì)")]
-    public float shieldRegenRate = 0f;
+    [Header("── Hit Flash ──")]
+    public float hitFlashDuration = 0.1f;
+    public Color hitFlashColor = Color.red;
 
     // Runtime values
     [HideInInspector] public float currentHp;
-    [HideInInspector] public float currentShield;
 
-    private Coroutine shieldRegenCoroutine;
+    private Renderer[] cachedRenderers;
+    private MaterialPropertyBlock[] originalPropertyBlocks;
+    private MaterialPropertyBlock[] flashPropertyBlocks;
+    private Coroutine flashCoroutine;
+
+    private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
+    private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorId = Shader.PropertyToID("_Color");
 
     void Start()
     {
         currentHp = stats.FinalHp;
-        currentShield = stats.FinalShield;
+        CacheRenderers();
+    }
+
+    private void CacheRenderers()
+    {
+        cachedRenderers = GetComponentsInChildren<Renderer>(true);
+        originalPropertyBlocks = new MaterialPropertyBlock[cachedRenderers.Length];
+        flashPropertyBlocks = new MaterialPropertyBlock[cachedRenderers.Length];
+
+        for (int i = 0; i < cachedRenderers.Length; i++)
+        {
+            originalPropertyBlocks[i] = new MaterialPropertyBlock();
+            flashPropertyBlocks[i] = new MaterialPropertyBlock();
+            cachedRenderers[i].GetPropertyBlock(originalPropertyBlocks[i]);
+        }
     }
 
     /// <summary>
-    /// Nhận damage: shield hấp thụ trước, phần còn lại trừ vào HP.
+    /// Nhận damage trực tiếp vào HP
     /// </summary>
     public void TakeDamage(float raw)
     {
@@ -34,25 +53,10 @@ public class PlayerHealth : MonoBehaviour
         if (stats != null)
             raw *= 1f - stats.FinalArmorReduction;
 
-        // Hủy coroutine hồi shield cũ nếu đang chạy
-        if (shieldRegenCoroutine != null)
-        {
-            StopCoroutine(shieldRegenCoroutine);
-            shieldRegenCoroutine = null;
-        }
-
-        // Shield hấp thụ trước
-        if (currentShield > 0f)
-        {
-            float absorbed = Mathf.Min(currentShield, raw);
-            currentShield -= absorbed;
-            raw -= absorbed;
-        }
-
-        // Phần dư trừ vào HP
         if (raw > 0f)
         {
             currentHp -= raw;
+            TriggerHitFlash();
         }
 
         if (currentHp <= 0f)
@@ -61,38 +65,61 @@ public class PlayerHealth : MonoBehaviour
             Die();
             return;
         }
-
-        // Bắt đầu hồi shield sau delay
-        shieldRegenCoroutine = StartCoroutine(ShieldRegenCoroutine());
     }
 
-    /// <summary>
-    /// Chờ shieldRegenDelay giây rồi hồi shield về max.
-    /// Nếu shieldRegenRate > 0 thì hồi dần, ngược lại hồi tức thì.
-    /// </summary>
-    private IEnumerator ShieldRegenCoroutine()
+    private void TriggerHitFlash()
     {
-        yield return new WaitForSeconds(shieldRegenDelay);
-
-        float maxShield = stats.FinalShield;
-
-        if (shieldRegenRate <= 0f)
+        if (flashCoroutine != null)
         {
-            // Hồi tức thì
-            currentShield = maxShield;
+            StopCoroutine(flashCoroutine);
         }
-        else
+        flashCoroutine = StartCoroutine(HitFlashRoutine());
+    }
+
+    private IEnumerator HitFlashRoutine()
+    {
+        if (cachedRenderers == null) yield break;
+
+        // Apply flash
+        for (int i = 0; i < cachedRenderers.Length; i++)
         {
-            // Hồi dần
-            while (currentShield < maxShield)
+            Renderer targetRenderer = cachedRenderers[i];
+            if (targetRenderer == null) continue;
+
+            targetRenderer.GetPropertyBlock(flashPropertyBlocks[i]);
+
+            flashPropertyBlocks[i].SetTexture(BaseMapId, Texture2D.whiteTexture);
+            flashPropertyBlocks[i].SetTexture(MainTexId, Texture2D.whiteTexture);
+            flashPropertyBlocks[i].SetColor(BaseColorId, hitFlashColor);
+            flashPropertyBlocks[i].SetColor(ColorId, hitFlashColor);
+            
+            targetRenderer.SetPropertyBlock(flashPropertyBlocks[i]);
+        }
+
+        yield return new WaitForSeconds(hitFlashDuration);
+
+        // Restore
+        for (int i = 0; i < cachedRenderers.Length; i++)
+        {
+            if (cachedRenderers[i] != null)
             {
-                currentShield += shieldRegenRate * Time.deltaTime;
-                currentShield = Mathf.Min(currentShield, maxShield);
-                yield return null;
+                cachedRenderers[i].SetPropertyBlock(originalPropertyBlocks[i]);
             }
         }
 
-        shieldRegenCoroutine = null;
+        flashCoroutine = null;
+    }
+
+    private void OnDisable()
+    {
+        if (cachedRenderers == null) return;
+        for (int i = 0; i < cachedRenderers.Length; i++)
+        {
+            if (cachedRenderers[i] != null)
+            {
+                cachedRenderers[i].SetPropertyBlock(originalPropertyBlocks[i]);
+            }
+        }
     }
 
     private void Die()
