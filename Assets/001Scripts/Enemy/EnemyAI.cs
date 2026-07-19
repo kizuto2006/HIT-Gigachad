@@ -5,148 +5,295 @@ public class EnemyAI : MonoBehaviour
     [Header("Climbing")]
     public float climbSpeed = 4f;
 
-    private bool isClimbing = false;
-    private Cell currentCell;
+    [Header("Knockback")]
+    [SerializeField, Min(0f)] private float knockbackDamping = 8f;
 
-    private float losTimer = 0f;
-    private bool hasLineOfSight = false;
-    private float raycastTimer = 0f;
+    private bool isClimbing;
+    private Cell currentCell;
+    private bool hasLineOfSight;
     private bool isGrounded = true;
+    private Vector3 knockbackVelocity;
+    private Vector3 cachedMovementDirection;
+    private float nextDirectionUpdateTime;
+    private float nextEnvironmentCheckTime;
+
+    private static readonly RaycastHit[] GroundHits = new RaycastHit[8];
+
+    public Vector3 CachedMovementDirection => cachedMovementDirection;
+    public float SqrDistanceTo(Vector3 position) => (transform.position - position).sqrMagnitude;
 
     private void OnEnable()
     {
         isClimbing = false;
         isGrounded = true;
         hasLineOfSight = false;
-        currentCell = null;
-        // Lệch nhịp tia laser để giảm tải CPU
-        losTimer = Random.Range(0f, 0.2f);
-        raycastTimer = Random.Range(0f, 0.06f);
+        knockbackVelocity = Vector3.zero;
+        cachedMovementDirection = Vector3.zero;
+        nextDirectionUpdateTime = 0f;
+        nextEnvironmentCheckTime = 0f;
 
-        // Báo danh với Quản lý Đa luồng khi vừa sinh ra
         if (EnemyManager.Instance != null)
+        {
             EnemyManager.Instance.RegisterEnemy(this);
+        }
     }
 
     private void OnDisable()
     {
-        // Gạch tên khỏi Quản lý khi bị thu hồi vào Pool
         if (EnemyManager.Instance != null)
-            EnemyManager.Instance.UnregisterEnemy(this);
-
-        // (Tùy chọn) Xóa tên khỏi ô lưới cũ nếu FlowFieldManager vẫn còn dùng
-        if (currentCell != null)
-            currentCell.enemiesInThisCell.Remove(this.transform);
-
-        currentCell = null;
-    }
-
-    // --- HÀM NÀY CUNG CẤP DỮ LIỆU HƯỚNG ĐI CHO MANAGER ---
-    public Vector3 GetMovementDirection()
-    {
-        if (isClimbing) return Vector3.zero;
-
-        Transform player = FlowFieldManager.Instance.playerTransform;
-        if (player == null) return Vector3.zero;
-
-        // Cập nhật ô lưới để lấy hướng mũi tên của Flow Field
-        currentCell = FlowFieldManager.Instance.GetCellFromWorldPos(transform.position);
-
-        Vector3 dirToPlayer = player.position - transform.position;
-
-        losTimer -= Time.deltaTime;
-        if (losTimer <= 0f)
         {
-            losTimer = 0.2f;
-            hasLineOfSight = !Physics.Raycast(transform.position - Vector3.up * 0.5f, dirToPlayer.normalized, dirToPlayer.magnitude, FlowFieldManager.Instance.obstacleLayer);
+            EnemyManager.Instance.UnregisterEnemy(this);
         }
 
-        if (dirToPlayer.magnitude < 1.2f) return Vector3.zero;
-        else if (hasLineOfSight) return new Vector3(dirToPlayer.x, 0, dirToPlayer.z).normalized;
-        else if (currentCell != null) return new Vector3(currentCell.bestDirection.x, 0, currentCell.bestDirection.z).normalized;
-
-        return Vector3.zero;
+        if (currentCell != null)
+        {
+            currentCell.enemiesInThisCell.Remove(transform);
+            currentCell = null;
+        }
     }
 
-    // --- HÀM NÀY DO MANAGER GỌI ĐỂ XỬ LÝ LEO TƯỜNG VÀ RƠI ---
-    public void ApplyRaycasts()
+    public bool IsDirectionUpdateDue(float currentTime)
     {
+        return currentTime >= nextDirectionUpdateTime;
+    }
+
+    public bool IsEnvironmentCheckDue(float currentTime)
+    {
+        return currentTime >= nextEnvironmentCheckTime;
+    }
+
+    /// <summary>
+    /// Cập nhật hướng AI ở tần suất thấp hơn frame rate và lưu lại để Job sử dụng.
+    /// Trả về số raycast đã dùng trong lần cập nhật này.
+    /// </summary>
+    public int RefreshMovementDirection(
+        Transform player,
+        FlowFieldManager flowField,
+        float updateInterval,
+        bool allowLineOfSightRaycast)
+    {
+        nextDirectionUpdateTime = Time.time + JitterInterval(updateInterval);
+
+        if (isClimbing || player == null || flowField == null)
+        {
+            cachedMovementDirection = Vector3.zero;
+            return 0;
+        }
+
+        currentCell = flowField.GetCellFromWorldPos(transform.position);
+        Vector3 directionToPlayer = player.position - transform.position;
+        float sqrDistance = directionToPlayer.sqrMagnitude;
+        int raycastsUsed = 0;
+
+        if (allowLineOfSightRaycast && sqrDistance > 0.0001f)
+        {
+            hasLineOfSight = !Physics.Raycast(
+                transform.position - Vector3.up * 0.5f,
+                directionToPlayer.normalized,
+                Mathf.Sqrt(sqrDistance),
+                flowField.obstacleLayer);
+            raycastsUsed = 1;
+        }
+
+        if (sqrDistance < 1.2f * 1.2f)
+        {
+            cachedMovementDirection = Vector3.zero;
+        }
+        else if (hasLineOfSight)
+        {
+            cachedMovementDirection = new Vector3(directionToPlayer.x, 0f, directionToPlayer.z).normalized;
+        }
+        else if (currentCell != null)
+        {
+            cachedMovementDirection = new Vector3(
+                currentCell.bestDirection.x,
+                0f,
+                currentCell.bestDirection.z).normalized;
+        }
+        else
+        {
+            cachedMovementDirection = Vector3.zero;
+        }
+
+        return raycastsUsed;
+    }
+
+    /// <summary>
+    /// Áp dụng knockback/trọng lực mỗi frame. Các raycast môi trường chỉ chạy khi
+    /// EnemyManager cấp ngân sách và đến thời điểm cập nhật của tier hiện tại.
+    /// </summary>
+    public int UpdateEnvironment(float updateInterval, bool allowRaycasts)
+    {
+        ApplyKnockbackVelocity();
+
         if (isClimbing)
         {
-            ClimbLogic();
-            return;
+            return ClimbLogic(updateInterval, allowRaycasts);
         }
 
-        // Tối ưu hóa: Chỉ bắn tia Raycast 15 lần/giây
-        raycastTimer -= Time.deltaTime;
-        if (raycastTimer <= 0f)
+        int raycastsUsed = 0;
+        if (allowRaycasts && IsEnvironmentCheckDue(Time.time))
         {
-            raycastTimer = 0.06f;
-
-            // 1. TRỌNG LỰC (BÁM DÍNH CHỐNG LÚN)
-            // Nhấc điểm bắn tia lên ngang ngực (+1.0m) để tia luôn bắt đầu từ trên không khí đâm xuống
-            Vector3 rayOriginDown = transform.position + Vector3.up * 1f;
-
-            if (Physics.Raycast(rayOriginDown, Vector3.down, out RaycastHit groundHit, 3f))
-            {
-                // Độ cao chuẩn = Điểm sàn nhà (groundHit.point.y) + 1.0m (Khoảng cách từ gót chân lên tâm quái)
-                float correctY = groundHit.point.y + 1.0f;
-
-                if (transform.position.y < correctY)
-                {
-                    // LỖI LÚN: Nếu Y hiện tại thấp hơn độ cao chuẩn -> Ép nảy lên mặt đất ngay lập tức!
-                    transform.position = new Vector3(transform.position.x, correctY, transform.position.z);
-                    isGrounded = true;
-                }
-                else if (transform.position.y > correctY && transform.position.y <= correctY + 0.6f)
-                {
-                    // ĐI XUỐNG DỐC: Ép bám sát mặt đất ngay lập tức để không bị rớt tự do gây giật lag
-                    transform.position = new Vector3(transform.position.x, correctY, transform.position.z);
-                    isGrounded = true;
-                }
-                else if (transform.position.y > correctY + 0.6f)
-                {
-                    // Nhảy vực hoặc rơi từ trên quá cao -> Cho rơi tự do
-                    isGrounded = false;
-                }
-                else
-                {
-                    isGrounded = true;
-                }
-            }
-            else
-            {
-                isGrounded = false; // Rơi xuống vực nếu không thấy đất
-            }
-
-            // 2. LEO TƯỜNG (Giữ nguyên như cũ)
-            Vector3 rayOriginForward = transform.position - Vector3.up * 0.5f - transform.forward * 0.5f;
-            LayerMask wallLayer = FlowFieldManager.Instance.obstacleLayer;
-            if (Physics.Raycast(rayOriginForward, transform.forward, out RaycastHit hit, 1.5f, wallLayer))
-            {
-                isClimbing = true;
-                transform.position = new Vector3(hit.point.x, transform.position.y, hit.point.z) - transform.forward * 0.4f;
-            }
+            nextEnvironmentCheckTime = Time.time + JitterInterval(updateInterval);
+            raycastsUsed += UpdateGroundState();
+            raycastsUsed += CheckForClimbObstacle();
         }
 
-        // Kéo quái rơi tự do nếu đang lơ lửng
         if (!isGrounded)
         {
             transform.position += Vector3.down * 15f * Time.deltaTime;
         }
+
+        return raycastsUsed;
     }
 
-    void ClimbLogic()
+    public void ApplyKnockback(Vector3 direction, float force)
+    {
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.0001f || force <= 0f)
+        {
+            return;
+        }
+
+        knockbackVelocity += direction.normalized * force;
+    }
+
+    private int UpdateGroundState()
+    {
+        Vector3 rayOriginDown = transform.position + Vector3.up;
+        if (TryGetGroundHit(rayOriginDown, out RaycastHit groundHit))
+        {
+            float correctY = groundHit.point.y + 1f;
+
+            if (transform.position.y < correctY ||
+                (transform.position.y > correctY && transform.position.y <= correctY + 0.6f))
+            {
+                transform.position = new Vector3(transform.position.x, correctY, transform.position.z);
+                isGrounded = true;
+            }
+            else if (transform.position.y > correctY + 0.6f)
+            {
+                isGrounded = false;
+            }
+            else
+            {
+                isGrounded = true;
+            }
+        }
+        else
+        {
+            isGrounded = false;
+        }
+
+        return 1;
+    }
+
+    private int CheckForClimbObstacle()
+    {
+        FlowFieldManager flowField = FlowFieldManager.Instance;
+        if (flowField == null)
+        {
+            return 0;
+        }
+
+        Vector3 rayOriginForward = transform.position - Vector3.up * 0.5f - transform.forward * 0.5f;
+        if (Physics.Raycast(rayOriginForward, transform.forward, out RaycastHit hit, 1.5f, flowField.obstacleLayer))
+        {
+            isClimbing = true;
+            cachedMovementDirection = Vector3.zero;
+            transform.position = new Vector3(hit.point.x, transform.position.y, hit.point.z) - transform.forward * 0.4f;
+        }
+
+        return 1;
+    }
+
+    private void ApplyKnockbackVelocity()
+    {
+        if (knockbackVelocity.sqrMagnitude < 0.0001f)
+        {
+            knockbackVelocity = Vector3.zero;
+            return;
+        }
+
+        transform.position += knockbackVelocity * Time.deltaTime;
+        float damping = 1f - Mathf.Exp(-knockbackDamping * Time.deltaTime);
+        knockbackVelocity = Vector3.Lerp(knockbackVelocity, Vector3.zero, damping);
+    }
+
+    private bool TryGetGroundHit(Vector3 origin, out RaycastHit closestHit)
+    {
+        int hitCount = Physics.RaycastNonAlloc(
+            origin,
+            Vector3.down,
+            GroundHits,
+            3f,
+            Physics.AllLayers,
+            QueryTriggerInteraction.Ignore);
+
+        float closestDistance = float.MaxValue;
+        closestHit = default;
+        bool foundGround = false;
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            RaycastHit hit = GroundHits[i];
+            if (hit.collider == null || hit.normal.y < 0.35f)
+            {
+                continue;
+            }
+
+            Transform hitTransform = hit.collider.transform;
+            if (hitTransform == transform || hitTransform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            if (hit.collider.GetComponentInParent<EnemyAI>() != null || hit.collider.CompareTag("Player"))
+            {
+                continue;
+            }
+
+            if (hit.distance < closestDistance)
+            {
+                closestDistance = hit.distance;
+                closestHit = hit;
+                foundGround = true;
+            }
+        }
+
+        return foundGround;
+    }
+
+    private int ClimbLogic(float updateInterval, bool allowRaycast)
     {
         transform.position += Vector3.up * climbSpeed * Time.deltaTime;
 
-        Vector3 bottomRayOrigin = transform.position - Vector3.up * 0.9f - transform.forward * 0.5f;
-        LayerMask wallLayer = FlowFieldManager.Instance.obstacleLayer;
+        if (!allowRaycast || !IsEnvironmentCheckDue(Time.time))
+        {
+            return 0;
+        }
 
-        if (!Physics.Raycast(bottomRayOrigin, transform.forward, 1.5f, wallLayer))
+        nextEnvironmentCheckTime = Time.time + JitterInterval(updateInterval);
+        FlowFieldManager flowField = FlowFieldManager.Instance;
+        if (flowField == null)
+        {
+            isClimbing = false;
+            return 0;
+        }
+
+        Vector3 bottomRayOrigin = transform.position - Vector3.up * 0.9f - transform.forward * 0.5f;
+        if (!Physics.Raycast(bottomRayOrigin, transform.forward, 1.5f, flowField.obstacleLayer))
         {
             transform.position += transform.forward * 0.8f + Vector3.up * 0.2f;
             isClimbing = false;
+            nextDirectionUpdateTime = 0f;
         }
+
+        return 1;
+    }
+
+    private static float JitterInterval(float interval)
+    {
+        return Mathf.Max(0.01f, interval) * Random.Range(0.85f, 1.15f);
     }
 }

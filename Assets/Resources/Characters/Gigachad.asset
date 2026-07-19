@@ -13,13 +13,22 @@ MonoBehaviour:
   m_Name: Gigachad
   m_EditorClassIdentifier: Assembly-CSharp::CharacterData
   characterName: Gigachad
-  description: "Ph\xF2ng th\u1EE7 cao, ch\u1ECBu \u0111\xF2n t\u1ED1t. Di chuy\u1EC3n
-    ch\u1EADm, nh\u1EA3y th\u1EA5p."
-  baseHp: 150
-  baseShield: 30
-  baseAtk: 10
-  baseProjSpeed: 18
-  baseProjCount: 1
-  baseSpeed: 6
-  jumpHeight: 1.8
-  baseDef: 0.35
+  description: "Nh\xE2n v\u1EADt c\xF3 120 HP, t\u1ED1c \u0111\u1ED9 di chuy\u1EC3n
+    0.95x v\xE0 kh\u1EA3 n\u0103ng nh\u1EA3y cao."
+  baseHp: 120
+  baseShield: 0
+  baseDef: 0
+  damageMultiplier: 1
+  criticalChance: 0.01
+  criticalDamageMultiplier: 2
+  attackSpeedMultiplier: 1
+  bonusProjectileCount: 0
+  sizeMultiplier: 1
+  projectileSpeedMultiplier: 1
+  durationMultiplier: 1
+  knockbackMultiplier: 1
+  moveSpeedMultiplier: 0.95
+  jumpHeight: 8
+  pickupRange: 5
+  experienceMultiplier: 1
+  startingWeapon: {fileID: 11400000, guid: 401d413b2ba143c19e2f9d9c93141c19, type: 2}

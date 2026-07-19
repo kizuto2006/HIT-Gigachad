@@ -286,7 +286,7 @@ MonoBehaviour:
     FieldOfView: 60.000004
     OrthographicSize: 5
     NearClipPlane: 0.3
-    FarClipPlane: 1000
+    FarClipPlane: 400
     Dutch: 0
     ModeOverride: 0
     PhysicalProperties:
@@ -401,7 +401,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1045086085621221835}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dbe43d662878a7c43bcd44d43c9e2094, type: 3}
   m_Name: 
@@ -416,14 +416,14 @@ MonoBehaviour:
   MinimumDistanceFromTarget: 0.3
   AvoidObstacles:
     Enabled: 1
-    DistanceLimit: 0
-    MinimumOcclusionTime: 0
+    DistanceLimit: 15
+    MinimumOcclusionTime: 0.05
     CameraRadius: 0.4
     UseFollowTarget:
       Enabled: 0
       YOffset: 0
     Strategy: 0
-    MaximumEffort: 4
+    MaximumEffort: 2
     SmoothingTime: 0
     Damping: 0.4
     DampingWhenOccluded: 0.2
@@ -457,8 +457,8 @@ MonoBehaviour:
         InputAction: {fileID: 0}
         Gain: 1
         LegacyInput: Mouse X
-        LegacyGain: 100
-        CancelDeltaTime: 0
+        LegacyGain: 0.5
+        CancelDeltaTime: 1
       InputValue: 0
       Driver:
         AccelTime: 0
@@ -470,8 +470,8 @@ MonoBehaviour:
         InputAction: {fileID: 0}
         Gain: 1
         LegacyInput: Mouse Y
-        LegacyGain: -100
-        CancelDeltaTime: 0
+        LegacyGain: -0.5
+        CancelDeltaTime: 1
       InputValue: 0
       Driver:
         AccelTime: 0
@@ -590,7 +590,7 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.3
-  far clip plane: 1000
+  far clip plane: 400
   field of view: 60.000004
   orthographic: 0
   orthographic size: 5
@@ -674,11 +674,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineBrain
   ShowDebugText: 0
-  ShowCameraFrustum: 1
+  ShowCameraFrustum: 0
   IgnoreTimeScale: 0
   WorldUpOverride: {fileID: 0}
   ChannelMask: -1
-  UpdateMethod: 2
+  UpdateMethod: 1
   BlendUpdateMethod: 1
   LensModeOverride:
     Enabled: 0
@@ -1497,7 +1497,11 @@ GameObject:
   - component: {fileID: 6079768917351580409}
   - component: {fileID: 7425420400923495207}
   - component: {fileID: 8206032391858327092}
+  - component: {fileID: 9000000000000000001}
+  - component: {fileID: 9000000000000000002}
   - component: {fileID: 5752380046634795080}
+  - component: {fileID: 8927827561009508240}
+  - component: {fileID: 5240835273377066106}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -1631,8 +1635,10 @@ MonoBehaviour:
   airLateralAcceleration: 0.35
   airCounterMomentumBraking: 1.5
   maximumAirDirectionInfluence: 0.05
-  normalJumpMomentumRetention: 0.45
-  bunnyHopMomentumRetention: 0.8
+  normalJumpMomentumRetention: 1
+  normalJumpSpeedBoost: 0.75
+  normalJumpMaxSpeedMultiplier: 1.1
+  bunnyHopMomentumRetention: 1
   enableBunnyHop: 1
   bunnyHopWindow: 0.12
   bunnyHopSpeedBoost: 0.75
@@ -1644,9 +1650,46 @@ MonoBehaviour:
   groundRotationSpeed: 720
   airRotationSpeed: 540
   minimumRotationSpeed: 0.1
+  alignVisualToGround: 1
+  slopeAlignmentSpeed: 12
+  maxVisualSlopeAngle: 45
+  visualGroundSnapDistance: 0.75
   coyoteTime: 0.15
   jumpBufferTime: 0.15
   fallTimeThreshold: 0.3
+--- !u!114 &9000000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6101822297866704205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc95e167400184049a64e4fd8707915d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponInventory
+  maxSlots: 2
+  playerStats: {fileID: 11400000, guid: 5ddfe57e98b0eee1f9031b94b9f39d9f, type: 2}
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!114 &9000000000000000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6101822297866704205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 417a531660afb9c479b466b85ceb36bd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponController
+  playerStats: {fileID: 11400000, guid: 5ddfe57e98b0eee1f9031b94b9f39d9f, type: 2}
+  autoEquipStartingWeapon: 1
+  weaponSlot1: {fileID: 11400000, guid: 401d413b2ba143c19e2f9d9c93141c19, type: 2}
+  weaponSlot2: {fileID: 0}
 --- !u!114 &5752380046634795080
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1777,6 +1820,46 @@ MonoBehaviour:
   m_DefaultActionMap: 
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 0}
+--- !u!114 &8927827561009508240
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6101822297866704205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 93474f02f8054dc4bbb32ff04f91dc7a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerTomeInventory
+  maxSlots: 2
+  playerStats: {fileID: 11400000, guid: 5ddfe57e98b0eee1f9031b94b9f39d9f, type: 2}
+  ownedTomes: []
+--- !u!114 &5240835273377066106
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6101822297866704205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58b3a83ad36b1ba47850cec1d405b912, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UpgradeManager
+  xpSystem: {fileID: 0}
+  weaponController: {fileID: 9000000000000000002}
+  tomeInventory: {fileID: 8927827561009508240}
+  upgradeUIPrefab: {fileID: 8312915107919633278, guid: 66664ee39dcc7a84d986cfbecfb6f77f, type: 3}
+  allWeapons:
+  - {fileID: 11400000, guid: 401d413b2ba143c19e2f9d9c93141c19, type: 2}
+  - {fileID: 11400000, guid: 2da2793f82fe43b786cda57a381e7713, type: 2}
+  allTomes:
+  - {fileID: 11400000, guid: dcc6a92917946a84485ff266fc0f5be6, type: 2}
+  - {fileID: 11400000, guid: 6079bae6ade8a1f4ca9cb6f1f76fa470, type: 2}
+  - {fileID: 11400000, guid: e2a4fcc2961ffb041bb8fdbfe27fb23f, type: 2}
+  optionsPerLevel: 3
+  pauseGameWhileChoosing: 1
 --- !u!1 &6227649464860532485
 GameObject:
   m_ObjectHideFlags: 0

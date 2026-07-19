@@ -31,9 +31,8 @@ public class PlayerHealth : MonoBehaviour
     {
         if (raw <= 0f) return;
 
-        // Áp dụng def từ CharacterData nếu có
-        if (stats != null && stats.characterData != null)
-            raw = raw * (1f - Mathf.Clamp01(stats.characterData.baseDef));
+        if (stats != null)
+            raw *= 1f - stats.FinalArmorReduction;
 
         // Hủy coroutine hồi shield cũ nếu đang chạy
         if (shieldRegenCoroutine != null)

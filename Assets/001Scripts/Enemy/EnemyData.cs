@@ -21,4 +21,8 @@ public class EnemyData : ScriptableObject
 
     [Header("── Size ──")]
     public EnemySize size = EnemySize.Medium;
+
+    [Header("── Rewards ──")]
+    [Tooltip("Lượng XP enemy drop khi chết.")]
+    public int xpReward = 5;
 }

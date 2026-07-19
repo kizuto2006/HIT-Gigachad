@@ -36,10 +36,14 @@ public class PlayerSimpleMovement : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float maximumAirDirectionInfluence = 0.05f;
 
     [Header("── Jump Horizontal Momentum ──")]
-    [Tooltip("Tỷ lệ momentum ngang giữ lại khi nhảy thường.")]
-    [SerializeField, Range(0f, 1f)] private float normalJumpMomentumRetention = 0.45f;
-    [Tooltip("Tỷ lệ momentum ngang giữ lại khi bunny-hop.")]
-    [SerializeField, Range(0f, 1f)] private float bunnyHopMomentumRetention = 0.8f;
+    [Tooltip("Tỷ lệ momentum ngang giữ lại khi nhảy thường. Đặt 1 để cú nhảy đầu tiên không làm giảm vận tốc.")]
+    [SerializeField, Range(0f, 1f)] private float normalJumpMomentumRetention = 1f;
+    [Tooltip("Lượng vận tốc ngang cộng thêm cho cú nhảy thường khi player đang di chuyển.")]
+    [SerializeField, Min(0f)] private float normalJumpSpeedBoost = 0.75f;
+    [Tooltip("Giới hạn tốc độ ngang của cú nhảy thường theo tỷ lệ CurrentMoveSpeed.")]
+    [SerializeField, Min(1f)] private float normalJumpMaxSpeedMultiplier = 1.1f;
+    [Tooltip("Tỷ lệ momentum ngang giữ lại khi bunny-hop. Đặt 1 để giữ nguyên vận tốc trước khi cộng boost.")]
+    [SerializeField, Range(0f, 1f)] private float bunnyHopMomentumRetention = 1f;
 
     [Header("── Bunny Hop ──")]
     [Tooltip("Cho phép bunny-hop thông qua jump buffer gần thời điểm landing.")]
@@ -65,6 +69,13 @@ public class PlayerSimpleMovement : MonoBehaviour
     [SerializeField, Min(0f)] private float airRotationSpeed = 540f;
     [SerializeField, Min(0f)] private float minimumRotationSpeed = 0.1f;
 
+    [Header("Slope Alignment")]
+    [Tooltip("Nghiêng riêng model theo bề mặt; CharacterController và camera vẫn thẳng đứng.")]
+    [SerializeField] private bool alignVisualToGround = true;
+    [SerializeField, Min(0f)] private float slopeAlignmentSpeed = 12f;
+    [SerializeField, Range(0f, 60f)] private float maxVisualSlopeAngle = 45f;
+    [SerializeField, Min(0f)] private float visualGroundSnapDistance = 0.75f;
+
     [Header("── Jump Assist ──")]
     [Tooltip("Thời gian cho phép nhảy sau khi rời mặt đất.")]
     [SerializeField, Min(0f)] private float coyoteTime = 0.15f;
@@ -81,6 +92,9 @@ public class PlayerSimpleMovement : MonoBehaviour
 
     private Transform cameraTransform;
     private Animator animator;
+    private Transform visualRoot;
+    private Quaternion visualBaseLocalRotation;
+    private readonly RaycastHit[] slopeHits = new RaycastHit[16];
     private Vector2 moveInput;
     private Vector3 horizontalVelocity;
     private Vector3 desiredFacingDirection;
@@ -128,6 +142,10 @@ public class PlayerSimpleMovement : MonoBehaviour
 
         cameraTransform = Camera.main != null ? Camera.main.transform : null;
         animator = GetComponentInChildren<Animator>();
+        visualRoot = animator != null ? animator.transform : null;
+        visualBaseLocalRotation = visualRoot != null
+            ? visualRoot.localRotation
+            : Quaternion.identity;
         CacheAnimatorParameters();
 
         if (controller == null)
@@ -179,6 +197,13 @@ public class PlayerSimpleMovement : MonoBehaviour
         controller.Move(frameVelocity * deltaTime);
 
         UpdateAnimator();
+    }
+
+    private void LateUpdate()
+    {
+        // Animator evaluates after Update and can overwrite the model root.
+        // Apply the terrain tilt last while leaving the gameplay root upright.
+        UpdateVisualSlopeAlignment(Time.deltaTime);
     }
 
     public void OnMove(InputAction.CallbackContext context)
@@ -405,7 +430,7 @@ public class PlayerSimpleMovement : MonoBehaviour
         }
         else
         {
-            horizontalVelocity *= normalJumpMomentumRetention;
+            ApplyNormalJumpBoost(desiredDirection);
         }
 
         jumpBufferCounter = 0f;
@@ -437,6 +462,24 @@ public class PlayerSimpleMovement : MonoBehaviour
 
         return desiredDirection.sqrMagnitude >= 0.0001f
             || horizontalVelocity.sqrMagnitude >= minimumRotationSpeed * minimumRotationSpeed;
+    }
+
+    private void ApplyNormalJumpBoost(Vector3 desiredDirection)
+    {
+        horizontalVelocity *= normalJumpMomentumRetention;
+
+        Vector3 boostDirection = desiredDirection.sqrMagnitude >= 0.0001f
+            ? desiredDirection.normalized
+            : horizontalVelocity.normalized;
+
+        if (boostDirection.sqrMagnitude < 0.0001f)
+        {
+            return;
+        }
+
+        horizontalVelocity += boostDirection * normalJumpSpeedBoost;
+        float maxJumpSpeed = CurrentMoveSpeed * normalJumpMaxSpeedMultiplier;
+        horizontalVelocity = Vector3.ClampMagnitude(horizontalVelocity, maxJumpSpeed);
     }
 
     private void ApplyBunnyHopBoost(Vector3 desiredDirection)
@@ -487,6 +530,80 @@ public class PlayerSimpleMovement : MonoBehaviour
             transform.rotation,
             targetRotation,
             rotationSpeed * deltaTime);
+    }
+
+    private void UpdateVisualSlopeAlignment(float deltaTime)
+    {
+        if (visualRoot == null)
+            return;
+
+        Vector3 surfaceNormal = Vector3.up;
+        if (alignVisualToGround)
+            TryGetGroundNormal(out surfaceNormal);
+
+        float slopeAngle = Vector3.Angle(Vector3.up, surfaceNormal);
+        if (slopeAngle > maxVisualSlopeAngle && slopeAngle > 0.001f)
+        {
+            surfaceNormal = Vector3.Slerp(
+                Vector3.up,
+                surfaceNormal,
+                maxVisualSlopeAngle / slopeAngle).normalized;
+        }
+
+        Quaternion slopeRotation = Quaternion.FromToRotation(Vector3.up, surfaceNormal);
+        Quaternion targetRotation = slopeRotation * transform.rotation * visualBaseLocalRotation;
+        float blend = 1f - Mathf.Exp(-slopeAlignmentSpeed * deltaTime);
+        visualRoot.rotation = Quaternion.Slerp(visualRoot.rotation, targetRotation, blend);
+    }
+
+    private bool TryGetGroundNormal(out Vector3 groundNormal)
+    {
+        Vector3 origin = transform.position + Vector3.up * 2f;
+        int hitCount = Physics.RaycastNonAlloc(
+            origin,
+            Vector3.down,
+            slopeHits,
+            8f,
+            Physics.AllLayers,
+            QueryTriggerInteraction.Ignore);
+
+        float closestDistance = float.MaxValue;
+        float closestGroundY = float.NegativeInfinity;
+        groundNormal = Vector3.up;
+        bool foundGround = false;
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            RaycastHit hit = slopeHits[i];
+            if (hit.collider == null || hit.normal.y < 0.35f)
+                continue;
+
+            Transform hitTransform = hit.collider.transform;
+            if (hitTransform == transform || hitTransform.IsChildOf(transform))
+                continue;
+
+            if (hit.collider.GetComponentInParent<EnemyHealth>() != null)
+                continue;
+
+            if (hit.distance < closestDistance)
+            {
+                closestDistance = hit.distance;
+                closestGroundY = hit.point.y;
+                groundNormal = hit.normal.normalized;
+                foundGround = true;
+            }
+        }
+        if (!foundGround)
+            return false;
+
+        float footClearance = controller.bounds.min.y - closestGroundY;
+        if (footClearance > visualGroundSnapDistance)
+        {
+            groundNormal = Vector3.up;
+            return false;
+        }
+
+        return true;
     }
 
     private void UpdateAnimator()

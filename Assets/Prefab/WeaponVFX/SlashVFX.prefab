@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3465020291432006897
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4661637264998031417}
+  - component: {fileID: 7076667005262232414}
+  m_Layer: 0
+  m_Name: SlashVFX
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4661637264998031417
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3465020291432006897}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.25862917, y: 0.009912936, z: -0.03699557, w: 0.9652171}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 30, y: 0, z: -4.39}
+--- !u!114 &7076667005262232414
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3465020291432006897}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a77946154244af44fa25205ac482318f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SlashVFX
+  duration: 0.48
+  drawDuration: 0.13
+  forwardDrift: 0.04
+  startScale: 0.5
+  followPlayerFacing: 1
+  followPlayerPosition: 1
+  segments: 64
+  radius: 0.53
+  verticalRatio: 1
+  startAngle: 180
+  endAngle: 0
+  localOffset: {x: 0, y: 0.11, z: -0.39}
+  coreColor: {r: 0.96, g: 0.99, b: 1, a: 1}
+  glowColor: {r: 0.08, g: 0.68, b: 1, a: 0.68}
+  coreWidth: 0.012
+  glowWidth: 0.04
+  trailRadius: 0.86
+  streakCount: 3
+  streakLength: 0.08
+  streakWidth: 0.004

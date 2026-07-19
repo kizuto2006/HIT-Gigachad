@@ -8,11 +8,15 @@ public class FlowFieldManager : MonoBehaviour
     [Header("Grid Settings")]
     // Tăng kích thước lưới lên 100x100 để bao phủ trọn vẹn khu vực spawn quái vật
     public Vector2Int gridSize = new Vector2Int(100, 100);
+    [Min(0.1f)]
     public float cellRadius = 0.5f;
     public LayerMask obstacleLayer; // Nhớ tạo Layer "Obstacles" và gán cho các bức tường
 
     [Header("Target")]
     public Transform playerTransform;
+
+    [Header("Editor Debug")]
+    [SerializeField] private bool drawFlowFieldGizmos;
 
     private Cell[,] grid;
     private float cellDiameter;
@@ -153,9 +157,9 @@ public class FlowFieldManager : MonoBehaviour
     }
 
     // Hàm này sẽ vẽ các ô lưới và mũi tên ra màn hình Scene (chỉ hiển thị trong Editor)
-    void OnDrawGizmos()
+    void OnDrawGizmosSelected()
     {
-        if (grid == null) return;
+        if (!drawFlowFieldGizmos || grid == null) return;
 
         foreach (Cell c in grid)
         {

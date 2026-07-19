@@ -13,18 +13,27 @@ MonoBehaviour:
   m_Name: PlayerStats_Gigachad
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBaseStats
   characterData: {fileID: 11400000, guid: 65d7fb2d7737e32f59f5ea7986992c2b, type: 2}
-  baseHp: 150
+  baseHp: 120
   bonusHpFlat: 0
   bonusHpPct: 0
-  baseShield: 30
+  baseShield: 0
   bonusShieldFlat: 0
+  armorReduction: 0
   baseAtk: 10
   bonusAtkPct: 0
+  criticalChance: 0.01
+  criticalDamageMultiplier: 2
+  attackSpeedMultiplier: 1
   baseProjSpeed: 18
   bonusProjSpeedPct: 0
   baseProjCount: 1
   bonusProjCountFlat: 0
-  baseSpeed: 6
-  bonusSpeedPct: 0
-  baseJumpHeight: 1.8
+  weaponSizeMultiplier: 1
+  durationMultiplier: 1
+  knockbackMultiplier: 1
+  baseSpeed: 3
+  bonusSpeedPct: -0.05
+  baseJumpHeight: 8
   bonusJumpHeightPct: 0
+  pickupRange: 5
+  experienceMultiplier: 1

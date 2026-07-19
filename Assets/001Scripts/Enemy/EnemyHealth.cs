@@ -1,17 +1,39 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class EnemyHealth : MonoBehaviour
 {
+    public static readonly List<EnemyHealth> ActiveEnemies = new List<EnemyHealth>(5000);
+    private static readonly List<EnemyHealth> FlashingEnemies = new List<EnemyHealth>(256);
+    private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
+    private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorId = Shader.PropertyToID("_Color");
+    private static HitFlashUpdater hitFlashUpdater;
+
     [Header("── Data Reference ──")]
     public EnemyData data;
 
-    [Tooltip("Transform được scale theo EnemySize. Mặc định tự tìm child 'Visual', fallback về root.")]
-    [SerializeField] private Transform scaleTarget;
+    [Header("── XP Drop ──")]
+    [Tooltip("Prefab XP gem sẽ drop khi enemy chết. Để null nếu không drop.")]
+    public GameObject xpGemPrefab;
+
+    [Header("Hit Flash")]
+    [SerializeField, Min(0.01f)] private float hitFlashDuration = 0.1f;
+    [SerializeField] private Color hitFlashColor = Color.white;
 
     // Runtime
     [HideInInspector] public float currentHp;
+    private Renderer[] cachedRenderers;
+    private MaterialPropertyBlock[] originalPropertyBlocks;
+    private MaterialPropertyBlock[] flashPropertyBlocks;
+    private float hitFlashTimeRemaining;
+    private bool isFlashing;
+    private bool isRegisteredForFlash;
+    private bool isDying;
 
     private EnemySpawn ownerSpawner;
+    private Transform scaleTarget;
     private Vector3 baseScale;
     private Collider rootCollider;
     private Vector3 baseColliderCenter;
@@ -22,24 +44,13 @@ public class EnemyHealth : MonoBehaviour
 
     private void Awake()
     {
-        if (scaleTarget == null)
-        {
-            Transform visual = transform.Find("Visual");
-            scaleTarget = visual != null ? visual : transform;
-        }
-
-        baseScale = scaleTarget.localScale;
-        CacheRootColliderGeometry();
+        CacheRenderers();
+        CacheSizeTargets();
 
         if (data == null)
         {
             Debug.LogError($"[EnemyHealth] EnemyData chưa được gán trên {gameObject.name}!");
         }
-    }
-
-    private void OnEnable()
-    {
-        ResetForSpawn();
     }
 
     public void SetSpawner(EnemySpawn spawner)
@@ -58,6 +69,103 @@ public class EnemyHealth : MonoBehaviour
             return;
         }
 
+        ApplySizeMultiplier();
+    }
+
+    private void OnEnable()
+    {
+        isDying = false;
+        ResetForSpawn();
+
+        if (!ActiveEnemies.Contains(this))
+        {
+            ActiveEnemies.Add(this);
+        }
+    }
+
+    private void OnDisable()
+    {
+        StopHitFlash();
+
+        int index = ActiveEnemies.IndexOf(this);
+        if (index < 0) return;
+
+        int lastIndex = ActiveEnemies.Count - 1;
+        ActiveEnemies[index] = ActiveEnemies[lastIndex];
+        ActiveEnemies.RemoveAt(lastIndex);
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetActiveEnemies()
+    {
+        ActiveEnemies.Clear();
+        FlashingEnemies.Clear();
+        hitFlashUpdater = null;
+    }
+
+    private void CacheRenderers()
+    {
+        cachedRenderers = GetComponentsInChildren<Renderer>(true);
+        originalPropertyBlocks = new MaterialPropertyBlock[cachedRenderers.Length];
+        flashPropertyBlocks = new MaterialPropertyBlock[cachedRenderers.Length];
+
+        for (int i = 0; i < cachedRenderers.Length; i++)
+        {
+            originalPropertyBlocks[i] = new MaterialPropertyBlock();
+            flashPropertyBlocks[i] = new MaterialPropertyBlock();
+        }
+    }
+
+    private void CacheSizeTargets()
+    {
+        // Scale the imported visual/model child while keeping the pooled root stable.
+        scaleTarget = transform.childCount > 0 ? transform.GetChild(0) : transform;
+        baseScale = scaleTarget.localScale;
+
+        rootCollider = GetComponent<Collider>();
+        if (rootCollider is BoxCollider box)
+        {
+            baseColliderCenter = box.center;
+            baseBoxSize = box.size;
+        }
+        else if (rootCollider is SphereCollider sphere)
+        {
+            baseColliderCenter = sphere.center;
+            baseColliderRadius = sphere.radius;
+        }
+        else if (rootCollider is CapsuleCollider capsule)
+        {
+            baseColliderCenter = capsule.center;
+            baseColliderRadius = capsule.radius;
+            baseCapsuleHeight = capsule.height;
+        }
+    }
+
+    private void ApplyRootColliderScale(float scaleMultiplier)
+    {
+        if (rootCollider is BoxCollider box)
+        {
+            box.center = baseColliderCenter * scaleMultiplier;
+            box.size = baseBoxSize * scaleMultiplier;
+        }
+        else if (rootCollider is SphereCollider sphere)
+        {
+            sphere.center = baseColliderCenter * scaleMultiplier;
+            sphere.radius = baseColliderRadius * scaleMultiplier;
+        }
+        else if (rootCollider is CapsuleCollider capsule)
+        {
+            capsule.center = baseColliderCenter * scaleMultiplier;
+            capsule.radius = baseColliderRadius * scaleMultiplier;
+            capsule.height = baseCapsuleHeight * scaleMultiplier;
+        }
+    }
+
+    /// <summary>
+    /// Áp dụng scale và HP multiplier dựa trên EnemySize.
+    /// </summary>
+    private void ApplySizeMultiplier()
+    {
         float scaleMul;
         float hpMul;
 
@@ -83,47 +191,17 @@ public class EnemyHealth : MonoBehaviour
         currentHp = data.hp * hpMul;
     }
 
-    private void CacheRootColliderGeometry()
+    private float GetHpMultiplier()
     {
-        rootCollider = GetComponent<Collider>();
-        if (rootCollider is CapsuleCollider capsule)
+        switch (data.size)
         {
-            baseColliderCenter = capsule.center;
-            baseColliderRadius = capsule.radius;
-            baseCapsuleHeight = capsule.height;
-        }
-        else if (rootCollider is BoxCollider box)
-        {
-            baseColliderCenter = box.center;
-            baseBoxSize = box.size;
-        }
-        else if (rootCollider is SphereCollider sphere)
-        {
-            baseColliderCenter = sphere.center;
-            baseColliderRadius = sphere.radius;
-        }
-    }
-
-    private void ApplyRootColliderScale(float scaleMultiplier)
-    {
-        // A collider on a scaled root already inherits scale through Transform.
-        if (rootCollider == null || scaleTarget == transform) return;
-
-        if (rootCollider is CapsuleCollider capsule)
-        {
-            capsule.center = baseColliderCenter * scaleMultiplier;
-            capsule.radius = baseColliderRadius * scaleMultiplier;
-            capsule.height = baseCapsuleHeight * scaleMultiplier;
-        }
-        else if (rootCollider is BoxCollider box)
-        {
-            box.center = baseColliderCenter * scaleMultiplier;
-            box.size = baseBoxSize * scaleMultiplier;
-        }
-        else if (rootCollider is SphereCollider sphere)
-        {
-            sphere.center = baseColliderCenter * scaleMultiplier;
-            sphere.radius = baseColliderRadius * scaleMultiplier;
+            case EnemySize.Small:
+                return 0.6f;
+            case EnemySize.Large:
+                return 2f;
+            case EnemySize.Medium:
+            default:
+                return 1f;
         }
     }
 
@@ -133,15 +211,142 @@ public class EnemyHealth : MonoBehaviour
     /// </summary>
     public void TakeDamage(float raw, bool isEliteDmg = false)
     {
-        if (isDead || data == null) return;
+        if (isDying)
+            return;
 
         float finalDmg = Mathf.Max(0f, raw - data.armor);
+        if (finalDmg <= 0f)
+            return;
+
         currentHp -= finalDmg;
+        StartHitFlash();
 
         if (currentHp <= 0f)
         {
             currentHp = 0f;
-            Die();
+            isDying = true;
+        }
+    }
+
+    private void StartHitFlash()
+    {
+        if (cachedRenderers == null)
+            CacheRenderers();
+
+        hitFlashTimeRemaining = hitFlashDuration;
+
+        if (!isFlashing)
+        {
+            isFlashing = true;
+            ApplyHitFlash();
+        }
+
+        if (!isRegisteredForFlash)
+        {
+            isRegisteredForFlash = true;
+            FlashingEnemies.Add(this);
+            EnsureHitFlashUpdater();
+        }
+    }
+
+    private void ApplyHitFlash()
+    {
+        for (int i = 0; i < cachedRenderers.Length; i++)
+        {
+            Renderer targetRenderer = cachedRenderers[i];
+            if (targetRenderer == null)
+                continue;
+
+            targetRenderer.GetPropertyBlock(originalPropertyBlocks[i]);
+            targetRenderer.GetPropertyBlock(flashPropertyBlocks[i]);
+            flashPropertyBlocks[i].SetTexture(BaseMapId, Texture2D.whiteTexture);
+            flashPropertyBlocks[i].SetTexture(MainTexId, Texture2D.whiteTexture);
+            flashPropertyBlocks[i].SetColor(BaseColorId, hitFlashColor);
+            flashPropertyBlocks[i].SetColor(ColorId, hitFlashColor);
+            targetRenderer.SetPropertyBlock(flashPropertyBlocks[i]);
+        }
+    }
+
+    private void RestoreRendererColors()
+    {
+        if (!isFlashing || cachedRenderers == null)
+            return;
+
+        for (int i = 0; i < cachedRenderers.Length; i++)
+        {
+            if (cachedRenderers[i] != null)
+                cachedRenderers[i].SetPropertyBlock(originalPropertyBlocks[i]);
+        }
+
+        isFlashing = false;
+        hitFlashTimeRemaining = 0f;
+    }
+
+    private void StopHitFlash()
+    {
+        RestoreRendererColors();
+
+        if (!isRegisteredForFlash)
+            return;
+
+        int index = FlashingEnemies.IndexOf(this);
+        if (index >= 0)
+        {
+            int lastIndex = FlashingEnemies.Count - 1;
+            FlashingEnemies[index] = FlashingEnemies[lastIndex];
+            FlashingEnemies.RemoveAt(lastIndex);
+        }
+
+        isRegisteredForFlash = false;
+    }
+
+    private static void EnsureHitFlashUpdater()
+    {
+        if (hitFlashUpdater != null)
+            return;
+
+        GameObject updaterObject = new GameObject("Enemy Hit Flash Updater");
+        DontDestroyOnLoad(updaterObject);
+        hitFlashUpdater = updaterObject.AddComponent<HitFlashUpdater>();
+    }
+
+    private static void UpdateHitFlashes(float deltaTime)
+    {
+        for (int i = FlashingEnemies.Count - 1; i >= 0; i--)
+        {
+            EnemyHealth enemy = FlashingEnemies[i];
+            if (enemy == null || !enemy.isActiveAndEnabled)
+            {
+                int lastIndex = FlashingEnemies.Count - 1;
+                FlashingEnemies[i] = FlashingEnemies[lastIndex];
+                FlashingEnemies.RemoveAt(lastIndex);
+                continue;
+            }
+
+            enemy.hitFlashTimeRemaining -= deltaTime;
+            if (enemy.hitFlashTimeRemaining > 0f)
+                continue;
+
+            enemy.RestoreRendererColors();
+            enemy.isRegisteredForFlash = false;
+            int last = FlashingEnemies.Count - 1;
+            FlashingEnemies[i] = FlashingEnemies[last];
+            FlashingEnemies.RemoveAt(last);
+
+            // Cú đánh kết liễu vẫn hiển thị trọn một lần nháy trắng.
+            // Chỉ sau khi renderer trở về màu gốc mới xử lý chết và trả về pool.
+            if (enemy.isDying)
+            {
+                enemy.Die();
+            }
+        }
+    }
+
+    private sealed class HitFlashUpdater : MonoBehaviour
+    {
+        private void Update()
+        {
+            UpdateHitFlashes(Time.deltaTime);
         }
     }
 
@@ -152,8 +357,16 @@ public class EnemyHealth : MonoBehaviour
 
         Debug.Log($"{gameObject.name} died");
 
-        if (ownerSpawner != null)
-            ownerSpawner.ReturnEnemyToPool(gameObject);
+        // Drop XP gem
+        if (xpGemPrefab != null && data != null)
+        {
+            Instantiate(xpGemPrefab, transform.position, Quaternion.identity);
+        }
+
+        // Tìm EnemySpawn và return về pool thay vì SetActive(false) trực tiếp
+        EnemySpawn spawner = FindAnyObjectByType<EnemySpawn>();
+        if (spawner != null)
+            spawner.ReturnEnemyToPool(gameObject);
         else
             gameObject.SetActive(false);
     }

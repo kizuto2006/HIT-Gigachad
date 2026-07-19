@@ -3,6 +3,10 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "PlayerStats", menuName = "Data/Player Base Stats")]
 public class PlayerBaseStats : ScriptableObject
 {
+    [System.NonSerialized] private float runtimeTomeDamageBonusPct;
+    [System.NonSerialized] private float runtimeTomeSizeBonusPct;
+    [System.NonSerialized] private float runtimeTomeMoveSpeedBonusPct;
+
     // ═══════════════════════════════════════════
     //  CHARACTER DATA SOURCE
     // ═══════════════════════════════════════════
@@ -25,11 +29,20 @@ public class PlayerBaseStats : ScriptableObject
 
         baseHp = characterData.baseHp;
         baseShield = characterData.baseShield;
-        baseAtk = characterData.baseAtk;
-        baseProjSpeed = characterData.baseProjSpeed;
-        baseProjCount = characterData.baseProjCount;
-        baseSpeed = characterData.baseSpeed;
+        armorReduction = characterData.baseDef;
+        bonusAtkPct = characterData.damageMultiplier - 1f;
+        criticalChance = characterData.criticalChance;
+        criticalDamageMultiplier = characterData.criticalDamageMultiplier;
+        attackSpeedMultiplier = characterData.attackSpeedMultiplier;
+        bonusProjCountFlat = characterData.bonusProjectileCount;
+        weaponSizeMultiplier = characterData.sizeMultiplier;
+        bonusProjSpeedPct = characterData.projectileSpeedMultiplier - 1f;
+        durationMultiplier = characterData.durationMultiplier;
+        knockbackMultiplier = characterData.knockbackMultiplier;
+        bonusSpeedPct = characterData.moveSpeedMultiplier - 1f;
         baseJumpHeight = characterData.jumpHeight;
+        pickupRange = characterData.pickupRange;
+        experienceMultiplier = characterData.experienceMultiplier;
 
         Debug.Log($"[PlayerBaseStats] Đã import stats từ '{characterData.characterName}' thành công!");
 
@@ -55,6 +68,10 @@ public class PlayerBaseStats : ScriptableObject
     [Tooltip("Flat bonus shield")]
     public float bonusShieldFlat = 0f;
 
+    [Range(0f, 0.95f)]
+    [Tooltip("Tỷ lệ giảm damage nhận vào.")]
+    public float armorReduction = 0f;
+
     // ═══════════════════════════════════════════
     //  OFFENSE
     // ═══════════════════════════════════════════
@@ -63,6 +80,11 @@ public class PlayerBaseStats : ScriptableObject
     public float baseAtk = 10f;
     [Tooltip("Percentage bonus ATK (0.5 = +50%)")]
     public float bonusAtkPct = 0f;
+
+    [Space(5)]
+    [Range(0f, 1f)] public float criticalChance = 0.01f;
+    [Min(1f)] public float criticalDamageMultiplier = 2f;
+    [Min(0.01f)] public float attackSpeedMultiplier = 1f;
 
     [Space(5)]
     [Tooltip("Base projectile speed")]
@@ -75,6 +97,11 @@ public class PlayerBaseStats : ScriptableObject
     public int baseProjCount = 1;
     [Tooltip("Flat bonus projectile count")]
     public int bonusProjCountFlat = 0;
+
+    [Space(5)]
+    [Min(0.01f)] public float weaponSizeMultiplier = 1f;
+    [Min(0.01f)] public float durationMultiplier = 1f;
+    [Min(0f)] public float knockbackMultiplier = 1f;
 
     // ═══════════════════════════════════════════
     //  MOBILITY
@@ -91,6 +118,10 @@ public class PlayerBaseStats : ScriptableObject
     [Tooltip("Percentage bonus jump height (0.2 = +20%)")]
     public float bonusJumpHeightPct = 0f;
 
+    [Header("── Collection ──")]
+    [Min(0f)] public float pickupRange = 1f;
+    [Min(0f)] public float experienceMultiplier = 1f;
+
     // ═══════════════════════════════════════════
     //  COMPUTED PROPERTIES
     // ═══════════════════════════════════════════
@@ -102,10 +133,10 @@ public class PlayerBaseStats : ScriptableObject
     public float FinalShield => baseShield + bonusShieldFlat;
 
     /// <summary>baseAtk * (1 + bonusAtkPct)</summary>
-    public float FinalAtk => baseAtk * (1f + bonusAtkPct);
+    public float FinalAtk => baseAtk * FinalDamageMultiplier;
 
     /// <summary>baseSpeed * (1 + bonusSpeedPct)</summary>
-    public float FinalSpeed => baseSpeed * (1f + bonusSpeedPct);
+    public float FinalSpeed => baseSpeed * Mathf.Max(0f, 1f + bonusSpeedPct + runtimeTomeMoveSpeedBonusPct);
 
     /// <summary>baseJumpHeight * (1 + bonusJumpHeightPct)</summary>
     public float FinalJumpHeight => baseJumpHeight * (1f + bonusJumpHeightPct);
@@ -115,4 +146,31 @@ public class PlayerBaseStats : ScriptableObject
 
     /// <summary>baseProjCount + bonusProjCountFlat</summary>
     public int FinalProjCount => baseProjCount + bonusProjCountFlat;
+
+    public float FinalArmorReduction => Mathf.Clamp(armorReduction, 0f, 0.95f);
+    public float FinalCriticalChance => Mathf.Clamp01(criticalChance);
+    public float FinalCriticalDamageMultiplier => Mathf.Max(1f, criticalDamageMultiplier);
+    public float FinalAttackSpeedMultiplier => Mathf.Max(0.01f, attackSpeedMultiplier);
+    public float FinalWeaponSizeMultiplier => Mathf.Max(0.01f, weaponSizeMultiplier + runtimeTomeSizeBonusPct);
+    public float FinalDurationMultiplier => Mathf.Max(0.01f, durationMultiplier);
+    public float FinalKnockbackMultiplier => Mathf.Max(0f, knockbackMultiplier);
+    public float FinalPickupRange => Mathf.Max(0f, pickupRange);
+    public float FinalExperienceMultiplier => Mathf.Max(0f, experienceMultiplier);
+
+    public float FinalDamageMultiplier => Mathf.Max(0f, 1f + bonusAtkPct + runtimeTomeDamageBonusPct);
+    public float TomeDamageBonusPct => runtimeTomeDamageBonusPct;
+    public float TomeSizeBonusPct => runtimeTomeSizeBonusPct;
+    public float TomeMoveSpeedBonusPct => runtimeTomeMoveSpeedBonusPct;
+
+    public void SetRuntimeTomeBonuses(float damageBonusPct, float sizeBonusPct, float moveSpeedBonusPct)
+    {
+        runtimeTomeDamageBonusPct = Mathf.Max(0f, damageBonusPct);
+        runtimeTomeSizeBonusPct = Mathf.Max(0f, sizeBonusPct);
+        runtimeTomeMoveSpeedBonusPct = Mathf.Max(0f, moveSpeedBonusPct);
+    }
+
+    public void ClearRuntimeTomeBonuses()
+    {
+        SetRuntimeTomeBonuses(0f, 0f, 0f);
+    }
 }
