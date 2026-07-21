@@ -1850,7 +1850,7 @@ MonoBehaviour:
   xpSystem: {fileID: 0}
   weaponController: {fileID: 9000000000000000002}
   tomeInventory: {fileID: 8927827561009508240}
-  upgradeUIPrefab: {fileID: 8312915107919633278, guid: 66664ee39dcc7a84d986cfbecfb6f77f, type: 3}
+  upgradeUIPrefab: {fileID: 8312915107919633278, guid: 91637dff01e3dec4cbe643fcc35d655a, type: 3}
   allWeapons:
   - {fileID: 11400000, guid: 401d413b2ba143c19e2f9d9c93141c19, type: 2}
   - {fileID: 11400000, guid: 2da2793f82fe43b786cda57a381e7713, type: 2}

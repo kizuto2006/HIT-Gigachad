@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System;
 
 public class PlayerHealth : MonoBehaviour
 {
@@ -12,11 +13,13 @@ public class PlayerHealth : MonoBehaviour
 
     // Runtime values
     [HideInInspector] public float currentHp;
+    public event Action Died;
 
     private Renderer[] cachedRenderers;
     private MaterialPropertyBlock[] originalPropertyBlocks;
     private MaterialPropertyBlock[] flashPropertyBlocks;
     private Coroutine flashCoroutine;
+    private bool isDead;
 
     private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
     private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
@@ -25,7 +28,7 @@ public class PlayerHealth : MonoBehaviour
 
     void Start()
     {
-        currentHp = stats.FinalHp;
+        currentHp = stats != null ? stats.FinalHp : 100f;
         CacheRenderers();
     }
 
@@ -48,7 +51,7 @@ public class PlayerHealth : MonoBehaviour
     /// </summary>
     public void TakeDamage(float raw)
     {
-        if (raw <= 0f) return;
+        if (isDead || raw <= 0f) return;
 
         if (stats != null)
             raw *= 1f - stats.FinalArmorReduction;
@@ -124,6 +127,9 @@ public class PlayerHealth : MonoBehaviour
 
     private void Die()
     {
+        if (isDead) return;
+        isDead = true;
         Debug.Log("Player died");
+        Died?.Invoke();
     }
 }
