@@ -1,0 +1,8 @@
+ken.png
+size:1244,264
+filter:Linear,Linear
+Layer 18
+bounds:829,4,256,411
+rotate:90
+Layer 19
+bounds:4,6,821,254

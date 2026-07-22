@@ -1,0 +1,16 @@
+vs.png
+size:516,132
+filter:Linear,Linear
+pma:true
+Circle03
+bounds:287,12,116,116
+offsets:6,6,128,128
+Group 1
+bounds:144,5,123,141
+rotate:90
+Group 2
+bounds:2,2,126,140
+rotate:90
+Ray01
+bounds:405,22,106,106
+offsets:11,11,128,128

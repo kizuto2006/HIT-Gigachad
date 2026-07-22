@@ -1,0 +1,47 @@
+congratualtion.png
+size:444,444
+filter:Linear,Linear
+pma:true
+2/Layer 1
+bounds:3,238,73,86
+rotate:90
+2/Layer 10
+bounds:355,370,70,85
+rotate:90
+2/Layer 11
+bounds:79,314,71,87
+rotate:90
+2/Layer 12
+bounds:3,403,37,83
+rotate:90
+2/Layer 13
+bounds:3,316,73,84
+2/Layer 14
+bounds:350,217,76,90
+rotate:90
+2/Layer 15
+bounds:169,219,75,85
+rotate:90
+2/Layer 2
+bounds:92,227,74,84
+2/Layer 3
+bounds:257,218,75,90
+rotate:90
+2/Layer 4
+bounds:169,299,71,84
+rotate:90
+2/Layer 5
+bounds:266,371,69,86
+rotate:90
+2/Layer 6
+bounds:256,297,71,86
+rotate:90
+2/Layer 7
+bounds:177,373,67,86
+rotate:90
+2/Layer 8
+bounds:345,296,71,85
+rotate:90
+2/Layer 9
+bounds:89,388,52,85
+rotate:90
