@@ -20,21 +20,34 @@ MonoBehaviour:
   rarity: 1
   atk: 6
   crit: 0
-  projectileSpeed: 7
-  projectileCount: 2
+  projectileSpeed: 10
+  additionalProjectileDamageMultiplier: 0.5
+  projectileCount: 1
   size: 4.5
-  cooldown: 1.25
+  cooldown: 0.25
+  maxAttackSpeedMultiplier: 2
   pierce: 0
   knockback: 0.5
   duration: 0.65
   hitInterval: 0.6
   orbitRadius: 2
   orbitSpeed: 180
-  maxLevel: 5
+  maxLevel: 40
   damagePerLevel: 2
   cooldownReductionPerLevel: 0.08
   sizePerLevel: 0.35
   projCountPerLevel: 0
+  useAutomaticLevelUpgrades: 1
+  automaticUpgradeStats: 7
+  automaticDamageBonus: 0.75
+  automaticSizeBonus: 0.06
+  automaticProjectileSpeedBonus: 0.5
+  automaticCooldownReduction: 0
+  automaticKnockbackBonus: 0
+  automaticSecondStatInterval: 4
+  automaticProjectileCountInterval: 15
+  automaticMaxProjectileCount: 21
+  grantSecondProjectileAtLevel2: 0
   attackType: 3
   attackEffectPrefab: {fileID: 1000000000000000001, guid: 8ab624f35c2e451282a4100dde8f41a8, type: 3}
   projectilePrefab: {fileID: 0}

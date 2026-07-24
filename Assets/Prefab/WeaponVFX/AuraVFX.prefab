@@ -44,8 +44,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f83f4efd92b4cd5a64bd78b5dc572aa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RadialPulseVFX
-  duration: 0.65
+  duration: 2.4
   drawDuration: 0.02
+  dimDuration: 0.2
+  dimBrightness: 0.74
   outerRotationSpeed: 42
   innerRotationSpeed: -58
   startScale: 0.5

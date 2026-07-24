@@ -73,6 +73,12 @@ public abstract class WeaponBehaviour : MonoBehaviour
         return data.GetStatsAtLevel(currentLevel, playerStats).projectileCount;
     }
 
+    public float GetFinalProjectileSpeed()
+    {
+        return data.GetStatsAtLevel(currentLevel, playerStats).projectileSpeed;
+    }
+
+
     /// <summary>
     /// Pierce count: weapon.pierce (không scale theo level hiện tại).
     /// </summary>
@@ -88,7 +94,7 @@ public abstract class WeaponBehaviour : MonoBehaviour
 
     public float GetFinalKnockback()
     {
-        return data.knockback * (playerStats != null ? playerStats.FinalKnockbackMultiplier : 1f);
+        return data.GetStatsAtLevel(currentLevel, playerStats).knockback;
     }
 
     public float GetFinalCritChance()

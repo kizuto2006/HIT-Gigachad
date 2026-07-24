@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,25 +8,45 @@ using UnityEngine;
 /// </summary>
 public sealed class SwordWeapon : WeaponBehaviour
 {
-    private const float ForwardOffsetRatio = 0.45f;
+    private const float ForwardOffsetRatio = 0.25f;
 
     public override void Attack()
     {
-        float radius = GetFinalSize();
-        Vector3 forward = playerTransform.forward;
-        forward.y = 0f;
-        forward = forward.sqrMagnitude > 0.001f ? forward.normalized : Vector3.forward;
-
-        Vector3 attackCenter = playerTransform.position + forward * (radius * ForwardOffsetRatio);
-        DamageEnemiesInSlash(attackCenter, forward, radius);
-        SpawnSlashVFX(attackCenter, radius);
-        PlayAttackSound(attackCenter);
+        StartCoroutine(AttackSequence());
     }
 
-    private void DamageEnemiesInSlash(Vector3 attackCenter, Vector3 attackForward, float radius)
+    private IEnumerator AttackSequence()
+    {
+        int slashCount = GetFinalProjCount();
+        float interval = 1f / Mathf.Max(1f, GetFinalProjectileSpeed());
+
+        for (int i = 0; i < slashCount; i++)
+        {
+            float radius = GetFinalSize();
+            Vector3 forward = playerTransform.forward;
+            forward.y = 0f;
+            forward = forward.sqrMagnitude > 0.001f ? forward.normalized : Vector3.forward;
+
+            float damageMultiplier = i == 0 ? 1f : data.additionalProjectileDamageMultiplier;
+            Vector3 attackCenter = playerTransform.position + forward * (radius * ForwardOffsetRatio);
+            DamageEnemiesInSlash(attackCenter, forward, radius, damageMultiplier);
+            SpawnSlashVFX(playerTransform.position, radius);
+            PlayAttackSound(attackCenter);
+
+            if (i < slashCount - 1)
+                yield return new WaitForSeconds(interval);
+        }
+    }
+
+
+    private void DamageEnemiesInSlash(
+        Vector3 attackCenter,
+        Vector3 attackForward,
+        float radius,
+        float damageMultiplier)
     {
         float radiusSquared = radius * radius;
-        float baseDamage = GetFinalDamage();
+        float baseDamage = GetFinalDamage() * damageMultiplier;
         List<EnemyHealth> enemies = EnemyHealth.ActiveEnemies;
 
         for (int i = enemies.Count - 1; i >= 0; i--)
@@ -75,7 +96,7 @@ public sealed class SwordWeapon : WeaponBehaviour
         if (slashVFX != null)
             slashVFX.SetFacingTarget(playerTransform);
 
-        Destroy(vfx, Mathf.Max(1f, data.duration));
+        Destroy(vfx, Mathf.Max(0.25f, data.duration));
     }
 
     private void PlayAttackSound(Vector3 position)

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// Gắn lên GameObject con của Player (đặt tên "MeleeHitbox").
@@ -13,8 +14,12 @@ public class PlayerMeleeHitbox : MonoBehaviour
     [Tooltip("Bán kính vùng tấn công melee")]
     public float hitboxRadius = 1.2f;
 
-    [Tooltip("Phím tấn công (mặc định chuột trái)")]
-    public KeyCode attackKey = KeyCode.Mouse0;
+    [Tooltip("Input action tấn công (mặc định chuột trái)")]
+    [SerializeField] private InputAction attackAction = new InputAction(
+        "Melee Attack",
+        InputActionType.Button,
+        "<Mouse>/leftButton");
+
 
     [Header("── Cooldown ──")]
     [Tooltip("Thời gian chờ giữa các lần tấn công (giây)")]
@@ -26,9 +31,19 @@ public class PlayerMeleeHitbox : MonoBehaviour
 
     private float lastAttackTime = -999f;
 
+    private void OnEnable()
+    {
+        attackAction.Enable();
+    }
+
+    private void OnDisable()
+    {
+        attackAction.Disable();
+    }
+
     void Update()
     {
-        if (Input.GetKeyDown(attackKey) && Time.time >= lastAttackTime + attackCooldown)
+        if (attackAction.WasPressedThisFrame() && Time.time >= lastAttackTime + attackCooldown)
         {
             Attack();
         }

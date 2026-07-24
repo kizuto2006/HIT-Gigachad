@@ -317,7 +317,7 @@ MonoBehaviour:
   TargetOffset: {x: 0, y: 0, z: 0}
   TrackerSettings:
     BindingMode: 4
-    PositionDamping: {x: 1, y: 1, z: 1}
+    PositionDamping: {x: 0.08, y: 0.15, z: 0.08}
     AngularDampingMode: 0
     RotationDamping: {x: 1, y: 1, z: 1}
     QuaternionDamping: 1
@@ -388,7 +388,7 @@ MonoBehaviour:
       Offset: {x: 0, y: 0}
   CenterOnActivate: 1
   TargetOffset: {x: 0, y: 1.5, z: 0}
-  Damping: {x: 0.5, y: 0.5}
+  Damping: {x: 0.08, y: 0.08}
   Lookahead:
     Enabled: 0
     Time: 0
@@ -454,10 +454,8 @@ MonoBehaviour:
       Owner: {fileID: 4980928299053342728}
       Enabled: 1
       Input:
-        InputAction: {fileID: 0}
-        Gain: 1
-        LegacyInput: Mouse X
-        LegacyGain: 0.5
+        InputAction: {fileID: -5630151704836100654, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+        Gain: 0.07
         CancelDeltaTime: 1
       InputValue: 0
       Driver:
@@ -467,10 +465,8 @@ MonoBehaviour:
       Owner: {fileID: 4980928299053342728}
       Enabled: 1
       Input:
-        InputAction: {fileID: 0}
-        Gain: 1
-        LegacyInput: Mouse Y
-        LegacyGain: -0.5
+        InputAction: {fileID: -5630151704836100654, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+        Gain: 0.05
         CancelDeltaTime: 1
       InputValue: 0
       Driver:
@@ -482,8 +478,6 @@ MonoBehaviour:
       Input:
         InputAction: {fileID: 0}
         Gain: 1
-        LegacyInput: 
-        LegacyGain: 1
         CancelDeltaTime: 0
       InputValue: 0
       Driver:
@@ -1502,6 +1496,7 @@ GameObject:
   - component: {fileID: 5752380046634795080}
   - component: {fileID: 8927827561009508240}
   - component: {fileID: 5240835273377066106}
+  - component: {fileID: 6151394319823545744}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -1860,6 +1855,20 @@ MonoBehaviour:
   - {fileID: 11400000, guid: e2a4fcc2961ffb041bb8fdbfe27fb23f, type: 2}
   optionsPerLevel: 3
   pauseGameWhileChoosing: 1
+--- !u!114 &6151394319823545744
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6101822297866704205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 827a68a970a625442b1bd3e7fa2fc305, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MegabonkSteppedAnimator
+  framesPerSecond: 12
+  targetAnimator: {fileID: 0}
 --- !u!1 &6227649464860532485
 GameObject:
   m_ObjectHideFlags: 0

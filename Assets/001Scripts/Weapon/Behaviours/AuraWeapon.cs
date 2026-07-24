@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,36 +8,79 @@ using UnityEngine;
 /// </summary>
 public sealed class AuraWeapon : WeaponBehaviour
 {
+    private GameObject auraVisual;
+
+    public override void Initialize(PlayerBaseStats stats, LayerMask enemyMask, Transform player)
+    {
+        base.Initialize(stats, enemyMask, player);
+        EnsureAuraVisual();
+    }
+
     public override void Attack()
     {
+        StartCoroutine(AttackSequence());
+    }
+
+    private IEnumerator AttackSequence()
+    {
         float radius = GetFinalSize();
-        Vector3 spawnPosition = playerTransform.position;
+        EnsureAuraVisual();
+        UpdateAuraVisualSize(radius);
 
-        GameObject pulseObject;
-        if (data.attackEffectPrefab != null)
+        int pulseCount = GetFinalProjCount();
+        float interval = 1f / Mathf.Max(1f, GetFinalProjectileSpeed());
+
+        for (int i = 0; i < pulseCount; i++)
         {
-            pulseObject = Instantiate(data.attackEffectPrefab, spawnPosition, Quaternion.identity);
+            GameObject pulseObject = new GameObject($"Aura_{data.weaponName}_DamagePulse");
+            pulseObject.transform.position = playerTransform.position;
+
+            float damageMultiplier = i == 0 ? 1f : data.additionalProjectileDamageMultiplier;
+            AuraDamagePulse pulse = pulseObject.AddComponent<AuraDamagePulse>();
+            pulse.Initialize(
+                GetFinalDamage() * damageMultiplier,
+                radius,
+                GetFinalDuration(),
+                GetFinalKnockback(),
+                GetFinalCritChance(),
+                playerStats != null ? playerStats.FinalCriticalDamageMultiplier : 2f,
+                playerTransform);
+
+            if (i == 0 && data.attackSound != null)
+                AudioSource.PlayClipAtPoint(data.attackSound, playerTransform.position);
+
+            if (i < pulseCount - 1)
+                yield return new WaitForSeconds(interval);
         }
-        else
-        {
-            pulseObject = new GameObject($"Aura_{data.weaponName}");
-            pulseObject.transform.position = spawnPosition;
-        }
+    }
 
-        pulseObject.transform.localScale = Vector3.one * radius * 2f;
 
-        AuraDamagePulse pulse = pulseObject.AddComponent<AuraDamagePulse>();
-        pulse.Initialize(
-            GetFinalDamage(),
-            radius,
-            GetFinalDuration(),
-            GetFinalKnockback(),
-            GetFinalCritChance(),
-            playerStats != null ? playerStats.FinalCriticalDamageMultiplier : 2f,
-            playerTransform);
+    protected override void OnLevelUp()
+    {
+        UpdateAuraVisualSize(GetFinalSize());
+    }
 
-        if (data.attackSound != null)
-            AudioSource.PlayClipAtPoint(data.attackSound, spawnPosition);
+    private void EnsureAuraVisual()
+    {
+        if (auraVisual != null || data == null || data.attackEffectPrefab == null || playerTransform == null)
+            return;
+
+        auraVisual = Instantiate(data.attackEffectPrefab, playerTransform.position, Quaternion.identity);
+        auraVisual.name = $"Aura_{data.weaponName}_PersistentVFX";
+        auraVisual.AddComponent<AuraGroundFollower>().Initialize(playerTransform);
+        UpdateAuraVisualSize(GetFinalSize());
+    }
+
+    private void UpdateAuraVisualSize(float radius)
+    {
+        if (auraVisual != null)
+            auraVisual.transform.localScale = Vector3.one * radius * 2f;
+    }
+
+    private void OnDisable()
+    {
+        if (auraVisual != null)
+            Destroy(auraVisual);
     }
 }
 
@@ -120,6 +164,78 @@ public sealed class AuraDamagePulse : MonoBehaviour
             Vector3 direction = enemy.transform.position - transform.position;
             enemyAI.ApplyKnockback(direction, knockback);
         }
+    }
+
+    private void FollowPlayerOnGround()
+    {
+        Vector3 playerPosition = player.position;
+        Vector3 rayOrigin = playerPosition + Vector3.up * 2f;
+        int hitCount = Physics.RaycastNonAlloc(
+            rayOrigin,
+            Vector3.down,
+            groundHits,
+            20f,
+            Physics.AllLayers,
+            QueryTriggerInteraction.Ignore);
+
+        float closestDistance = float.MaxValue;
+        float groundY = playerPosition.y;
+        Vector3 groundNormal = Vector3.up;
+        bool foundGround = false;
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            RaycastHit hit = groundHits[i];
+            if (hit.collider == null || hit.normal.y < 0.35f)
+                continue;
+
+            Transform hitTransform = hit.collider.transform;
+            if (hitTransform == player || hitTransform.IsChildOf(player))
+                continue;
+
+            if (hit.collider.GetComponentInParent<EnemyHealth>() != null)
+                continue;
+
+            if (hit.distance >= closestDistance)
+                continue;
+
+            closestDistance = hit.distance;
+            groundY = hit.point.y;
+            groundNormal = hit.normal;
+            foundGround = true;
+        }
+
+        if (!foundGround)
+        {
+            CharacterController controller = player.GetComponent<CharacterController>();
+            groundY = controller != null ? controller.bounds.min.y : playerPosition.y;
+        }
+
+        transform.position = new Vector3(playerPosition.x, groundY, playerPosition.z);
+        transform.rotation = Quaternion.FromToRotation(Vector3.up, groundNormal);
+    }
+}
+
+
+/// <summary>
+/// Keeps the persistent Aura VFX aligned to the ground below the player.
+/// This component only handles presentation and never controls damage timing.
+/// </summary>
+public sealed class AuraGroundFollower : MonoBehaviour
+{
+    private readonly RaycastHit[] groundHits = new RaycastHit[16];
+    private Transform player;
+
+    public void Initialize(Transform sourcePlayer)
+    {
+        player = sourcePlayer;
+        FollowPlayerOnGround();
+    }
+
+    private void LateUpdate()
+    {
+        if (player != null)
+            FollowPlayerOnGround();
     }
 
     private void FollowPlayerOnGround()

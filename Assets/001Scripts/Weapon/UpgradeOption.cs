@@ -13,7 +13,9 @@ public enum WeaponStatKind
     Damage,
     Cooldown,
     Size,
+    ProjectileSpeed,
     ProjectileCount,
+    Knockback,
     TomeBonus
 }
 
@@ -24,7 +26,9 @@ public struct WeaponStatsSnapshot
     public float damage;
     public float cooldown;
     public float size;
+    public float projectileSpeed;
     public int projectileCount;
+    public float knockback;
 
     public static WeaponStatsSnapshot Empty => new WeaponStatsSnapshot { level = 0 };
 }
@@ -136,7 +140,7 @@ public class UpgradeOption
 
     public List<WeaponStatChange> GetStatChanges(bool includeUnchanged = false)
     {
-        List<WeaponStatChange> changes = new List<WeaponStatChange>(4);
+        List<WeaponStatChange> changes = new List<WeaponStatChange>(6);
         if (IsTome)
         {
             if (tome != null)
@@ -147,7 +151,9 @@ public class UpgradeOption
         AddChange(changes, WeaponStatKind.Damage, "DAMAGE", currentStats.damage, nextStats.damage, false, false, false, includeUnchanged);
         AddChange(changes, WeaponStatKind.Cooldown, "COOLDOWN", currentStats.cooldown, nextStats.cooldown, false, false, true, includeUnchanged);
         AddChange(changes, WeaponStatKind.Size, "SIZE", currentStats.size, nextStats.size, false, false, false, includeUnchanged);
+        AddChange(changes, WeaponStatKind.ProjectileSpeed, "PROJECTILE SPEED", currentStats.projectileSpeed, nextStats.projectileSpeed, false, false, false, includeUnchanged);
         AddChange(changes, WeaponStatKind.ProjectileCount, "PROJECTILES", currentStats.projectileCount, nextStats.projectileCount, true, false, false, includeUnchanged);
+        AddChange(changes, WeaponStatKind.Knockback, "KNOCKBACK", currentStats.knockback, nextStats.knockback, false, false, false, includeUnchanged);
         return changes;
     }
 
@@ -157,8 +163,14 @@ public class UpgradeOption
         if (changes.Count == 0)
             return description ?? string.Empty;
 
-        WeaponStatChange change = changes[0];
-        return $"{change.label}: {change.CurrentText}  <color=#D9D3BE>></color>  <color=#16D22D>{change.NextText}</color>";
+        List<string> lines = new List<string>(changes.Count);
+        for (int i = 0; i < changes.Count; i++)
+        {
+            WeaponStatChange change = changes[i];
+            lines.Add($"{change.label}: {change.CurrentText}  <color=#D9D3BE>></color>  <color=#16D22D>{change.NextText}</color>");
+        }
+
+        return string.Join("\n", lines);
     }
 
     private static string GetTomeStatLabel(TomeStatType statType)

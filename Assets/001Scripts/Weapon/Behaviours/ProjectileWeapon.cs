@@ -26,8 +26,7 @@ public class ProjectileWeapon : WeaponBehaviour
 
         int count = GetFinalProjCount();
         float damage = GetFinalDamage();
-        float speed = data.projectileSpeed;
-        if (playerStats != null) speed *= (1f + playerStats.bonusProjSpeedPct);
+        float speed = GetFinalProjectileSpeed();
 
         // Tìm target gần nhất
         Transform target = FindClosestEnemy(targetRange);

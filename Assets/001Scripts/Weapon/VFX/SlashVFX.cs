@@ -9,9 +9,9 @@ using UnityEngine.Rendering;
 public sealed class SlashVFX : MonoBehaviour
 {
     [Header("Animation")]
-    [SerializeField, Min(0.1f)] private float duration = 0.42f;
-    [SerializeField, Range(0.02f, 0.3f)] private float drawDuration = 0.11f;
-    [SerializeField, Min(0f)] private float forwardDrift = 0.28f;
+    [SerializeField, Min(0.1f)] private float duration = 0.25f;
+    [SerializeField, Range(0.02f, 0.3f)] private float drawDuration = 0.065f;
+    [SerializeField, Min(0f)] private float forwardDrift = 0f;
     [SerializeField, Range(0f, 0.5f)] private float startScale = 0.72f;
     [SerializeField] private bool followPlayerFacing = true;
     [SerializeField] private bool followPlayerPosition = true;
@@ -20,9 +20,9 @@ public sealed class SlashVFX : MonoBehaviour
     [SerializeField, Range(12, 64)] private int segments = 36;
     [SerializeField, Min(0.1f)] private float radius = 1.15f;
     [SerializeField, Range(0.1f, 1f)] private float verticalRatio = 0.62f;
-    [SerializeField, Range(-180f, 180f)] private float startAngle = -145f;
-    [SerializeField, Range(-180f, 180f)] private float endAngle = 28f;
-    [SerializeField] private Vector3 localOffset = new Vector3(0f, 0.35f, 0.48f);
+    [SerializeField, Range(-360f, 360f)] private float startAngle = 200f;
+    [SerializeField, Range(-360f, 360f)] private float endAngle = -20f;
+    [SerializeField] private Vector3 localOffset = new Vector3(0f, 0.11f, 0.25f);
 
     [Header("Appearance")]
     [SerializeField] private Color coreColor = new Color(0.96f, 0.99f, 1f, 1f);

@@ -1,16 +1,21 @@
 using UnityEngine;
 
 /// <summary>
-/// Draws a short-lived, pixel-stepped shockwave on the XZ ground plane.
-/// AoEWeapon scales this object to the attack diameter, so an outer radius of
-/// 0.5 always matches WeaponData.size.
+/// Draws a persistent, pixel-stepped aura on the XZ ground plane.
+/// AuraWeapon scales this object to the attack diameter, so an outer radius of
+/// 0.5 always matches WeaponData.size. Its brightness is independent from damage timing.
 /// </summary>
 [ExecuteAlways]
 public sealed class RadialPulseVFX : MonoBehaviour
 {
     [Header("Animation")]
-    [SerializeField, Min(0.1f)] private float duration = 0.65f;
+    [Tooltip("Khoảng thời gian giữa hai lần Aura mờ nhẹ.")]
+    [SerializeField, Min(0.5f)] private float duration = 2.4f;
     [SerializeField, Range(0.02f, 0.5f)] private float drawDuration = 0.18f;
+    [Tooltip("Thời gian mờ xuống rồi sáng trở lại.")]
+    [SerializeField, Range(0.05f, 0.5f)] private float dimDuration = 0.2f;
+    [Tooltip("Độ sáng thấp nhất khi Aura mờ nhẹ.")]
+    [SerializeField, Range(0.5f, 1f)] private float dimBrightness = 0.74f;
     [SerializeField] private float outerRotationSpeed = 42f;
     [SerializeField] private float innerRotationSpeed = -58f;
     [SerializeField, Range(0.5f, 1f)] private float startScale = 0.78f;
@@ -224,16 +229,15 @@ public sealed class RadialPulseVFX : MonoBehaviour
         }
 
         float previewScale = Application.isPlaying ? 1f : 6f;
-        float normalizedTime = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, duration));
         float drawProgress = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0f, drawDuration, elapsed));
         int visiblePoints = Mathf.Clamp(Mathf.CeilToInt(segments * drawProgress), 2, segments);
         float pulseScale = Mathf.Lerp(startScale, 1f, EaseOutBack(drawProgress));
-        float fade = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.72f, 1f, normalizedTime));
+        float brightness = GetSteadyBrightness();
 
         Color core = coreColor;
-        core.a *= fade;
+        core.a *= brightness;
         Color glow = glowColor;
-        glow.a *= fade;
+        glow.a *= brightness;
 
         foreach (PixelRing ring in rings)
         {
@@ -247,10 +251,9 @@ public sealed class RadialPulseVFX : MonoBehaviour
             UpdatePixelLine(ring.glow, ring, visiblePoints, previewScale);
         }
 
-        float burstReveal = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.04f, 0.22f, normalizedTime));
-        float burstFlicker = 0.82f + Mathf.Sin(elapsed * 37f) * 0.18f;
-        UpdateBurstMesh(burstGlow, previewScale, pulseScale, burstReveal, fade * 0.52f * burstFlicker, 3.2f, 1.18f);
-        UpdateBurstMesh(burstCore, previewScale, pulseScale, burstReveal, fade * burstFlicker, 1f, 1f);
+        float burstReveal = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.04f, 0.14f, elapsed));
+        UpdateBurstMesh(burstGlow, previewScale, pulseScale, burstReveal, brightness * 0.52f, 3.2f, 1.18f);
+        UpdateBurstMesh(burstCore, previewScale, pulseScale, burstReveal, brightness, 1f, 1f);
     }
 
     private void UpdatePixelLine(LineRenderer line, PixelRing ring, int visiblePoints, float previewScale)
@@ -364,7 +367,7 @@ public sealed class RadialPulseVFX : MonoBehaviour
             EnsureInitialized();
             rebuildRequested = false;
         }
-        elapsed = (float)(UnityEditor.EditorApplication.timeSinceStartup % duration);
+        elapsed = (float)(UnityEditor.EditorApplication.timeSinceStartup % Mathf.Max(0.5f, duration));
         AnimateEffect();
         UnityEditor.SceneView.RepaintAll();
     }
@@ -424,5 +427,19 @@ public sealed class RadialPulseVFX : MonoBehaviour
             gameObject.SetActive(false);
         if (Application.isPlaying) Destroy(target);
         else DestroyImmediate(target);
+    }
+
+
+    private float GetSteadyBrightness()
+    {
+        float interval = Mathf.Max(dimDuration, duration);
+        float dimStart = interval - dimDuration;
+        float phase = Mathf.Repeat(elapsed, interval);
+        if (phase < dimStart)
+            return 1f;
+
+        float dimProgress = Mathf.InverseLerp(dimStart, interval, phase);
+        float softDip = Mathf.Sin(dimProgress * Mathf.PI);
+        return Mathf.Lerp(1f, dimBrightness, softDip);
     }
 }

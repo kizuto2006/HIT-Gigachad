@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Pool;
@@ -5,6 +6,8 @@ using UnityEngine.Pool;
 public class EnemySpawn : MonoBehaviour
 {
     [Header("References")]
+    [Tooltip("Các enemy bổ sung sẽ được spawn ngẫu nhiên cùng enemyPrefab.")]
+    public GameObject[] additionalEnemyPrefabs;
     public GameObject enemyPrefab;
     public Transform playerTransform;
 
@@ -55,35 +58,28 @@ public class EnemySpawn : MonoBehaviour
     [SerializeField] private int currentMinGroupSize;
     [SerializeField] private int currentMaxGroupSize;
 
-    private ObjectPool<GameObject> enemyPool;
+    private readonly List<ObjectPool<GameObject>> enemyPools = new List<ObjectPool<GameObject>>();
+    private readonly Dictionary<GameObject, ObjectPool<GameObject>> poolByEnemy =
+        new Dictionary<GameObject, ObjectPool<GameObject>>();
     private Coroutine spawnRoutine;
 
     private void Start()
     {
-        if (enemyPrefab == null || playerTransform == null)
+        if (!HasAnyEnemyPrefab() || playerTransform == null)
         {
-            Debug.LogError("[EnemySpawn] Cần gán Enemy Prefab và Player Transform.", this);
+            Debug.LogError("[EnemySpawn] Cần gán ít nhất một Enemy Prefab và Player Transform.", this);
             enabled = false;
             return;
         }
 
-        enemyPool = new ObjectPool<GameObject>(
-            createFunc: CreatePooledEnemy,
-            actionOnGet: _ => { },
-            actionOnRelease: enemy => enemy.SetActive(false),
-            actionOnDestroy: enemy => Destroy(enemy),
-            collectionCheck: false,
-            defaultCapacity: 100,
-            maxSize: 1000
-        );
-
+        CreatePools();
         PrewarmPool();
         spawnRoutine = StartCoroutine(SpawnGroups());
     }
 
     private void OnEnable()
     {
-        if (enemyPool != null && spawnRoutine == null)
+        if (enemyPools.Count > 0 && spawnRoutine == null)
         {
             spawnRoutine = StartCoroutine(SpawnGroups());
         }
@@ -93,9 +89,9 @@ public class EnemySpawn : MonoBehaviour
     {
         elapsedTime += Time.deltaTime;
 
-        if (enemyPool != null)
+        if (enemyPools.Count > 0)
         {
-            activeEnemyCount = enemyPool.CountActive;
+            activeEnemyCount = GetActiveEnemyCount();
         }
 
         UpdateCurrentGroupSize();
@@ -123,7 +119,7 @@ public class EnemySpawn : MonoBehaviour
 
     private void SpawnGroup()
     {
-        int availableSlots = maxActiveEnemies - enemyPool.CountActive;
+        int availableSlots = maxActiveEnemies - GetActiveEnemyCount();
         if (availableSlots <= 0)
         {
             return;
@@ -153,7 +149,8 @@ public class EnemySpawn : MonoBehaviour
             Vector3 spawnPosition = groupCenter + new Vector3(offset.x, 0f, offset.y);
             spawnPosition.y = GetGroundHeight(spawnPosition);
 
-            GameObject enemy = enemyPool.Get();
+            ObjectPool<GameObject> selectedPool = enemyPools[Random.Range(0, enemyPools.Count)];
+            GameObject enemy = selectedPool.Get();
             EnemySpawnEmergence emergence = enemy.GetComponent<EnemySpawnEmergence>();
             if (emergence == null)
             {
@@ -170,12 +167,80 @@ public class EnemySpawn : MonoBehaviour
         }
     }
 
-    private GameObject CreatePooledEnemy()
+    private GameObject CreatePooledEnemy(GameObject prefab, ObjectPool<GameObject> ownerPool)
     {
-        GameObject enemy = Instantiate(enemyPrefab, enemyContainer);
+        GameObject enemy = Instantiate(prefab, enemyContainer);
         enemy.SetActive(false);
+        poolByEnemy[enemy] = ownerPool;
         return enemy;
     }
+
+    private void CreatePools()
+    {
+        enemyPools.Clear();
+        poolByEnemy.Clear();
+
+        List<GameObject> prefabs = GetUniqueEnemyPrefabs();
+        for (int i = 0; i < prefabs.Count; i++)
+        {
+            GameObject prefab = prefabs[i];
+            ObjectPool<GameObject> pool = null;
+            pool = new ObjectPool<GameObject>(
+                createFunc: () => CreatePooledEnemy(prefab, pool),
+                actionOnGet: _ => { },
+                actionOnRelease: enemy => enemy.SetActive(false),
+                actionOnDestroy: enemy =>
+                {
+                    poolByEnemy.Remove(enemy);
+                    Destroy(enemy);
+                },
+                collectionCheck: false,
+                defaultCapacity: Mathf.Max(1, initialPoolSize / prefabs.Count),
+                maxSize: 1000
+            );
+            enemyPools.Add(pool);
+        }
+    }
+
+    private bool HasAnyEnemyPrefab()
+    {
+        return GetUniqueEnemyPrefabs().Count > 0;
+    }
+
+    private List<GameObject> GetUniqueEnemyPrefabs()
+    {
+        List<GameObject> prefabs = new List<GameObject>();
+        AddUniquePrefab(prefabs, enemyPrefab);
+
+        if (additionalEnemyPrefabs != null)
+        {
+            for (int i = 0; i < additionalEnemyPrefabs.Length; i++)
+            {
+                AddUniquePrefab(prefabs, additionalEnemyPrefabs[i]);
+            }
+        }
+
+        return prefabs;
+    }
+
+    private static void AddUniquePrefab(List<GameObject> prefabs, GameObject prefab)
+    {
+        if (prefab != null && !prefabs.Contains(prefab))
+        {
+            prefabs.Add(prefab);
+        }
+    }
+
+    private int GetActiveEnemyCount()
+    {
+        int count = 0;
+        for (int i = 0; i < enemyPools.Count; i++)
+        {
+            count += enemyPools[i].CountActive;
+        }
+        return count;
+    }
+
 
     private void PrewarmPool()
     {
@@ -186,14 +251,17 @@ public class EnemySpawn : MonoBehaviour
         }
 
         GameObject[] prewarmedEnemies = new GameObject[count];
+        ObjectPool<GameObject>[] prewarmedPools = new ObjectPool<GameObject>[count];
         for (int i = 0; i < count; i++)
         {
-            prewarmedEnemies[i] = enemyPool.Get();
+            ObjectPool<GameObject> pool = enemyPools[i % enemyPools.Count];
+            prewarmedPools[i] = pool;
+            prewarmedEnemies[i] = pool.Get();
         }
 
         for (int i = 0; i < count; i++)
         {
-            enemyPool.Release(prewarmedEnemies[i]);
+            prewarmedPools[i].Release(prewarmedEnemies[i]);
         }
     }
 
@@ -233,12 +301,21 @@ public class EnemySpawn : MonoBehaviour
 
     public void ReturnEnemyToPool(GameObject enemy)
     {
-        if (enemyPool == null || enemy == null)
+        if (enemy == null)
         {
             return;
         }
 
-        enemyPool.Release(enemy);
+        ObjectPool<GameObject> ownerPool;
+        if (poolByEnemy.TryGetValue(enemy, out ownerPool))
+        {
+            ownerPool.Release(enemy);
+        }
+        else
+        {
+            Debug.LogWarning("[EnemySpawn] Enemy không thuộc pool của spawner này.", enemy);
+            enemy.SetActive(false);
+        }
     }
 
     private void OnValidate()

@@ -106,11 +106,11 @@ Material:
     - _Metallic2: 0
     - _Metallic3: 0
     - _NumLayersCount: 1
-    - _Smoothness0: 0.5
-    - _Smoothness1: 0.5
-    - _Smoothness2: 0.5
-    - _Smoothness3: 0.5
+    - _Smoothness0: 0.05
+    - _Smoothness1: 0.05
+    - _Smoothness2: 0.05
+    - _Smoothness3: 0.05
     m_Colors:
-    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _BaseColor: {r: 0.92, g: 0.88, b: 0.78, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
