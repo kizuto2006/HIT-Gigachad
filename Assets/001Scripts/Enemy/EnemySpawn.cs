@@ -16,6 +16,10 @@ public class EnemySpawn : MonoBehaviour
     [Min(0.1f)] public float spawnRadius = 25f;
     [Tooltip("Bán kính rải quái quanh tâm của một đàn.")]
     [Min(0f)] public float groupSpreadRadius = 2.5f;
+    [Tooltip("Tỷ lệ một đàn được ưu tiên spawn trong cung phía trước hướng nhìn của Player.")]
+    [Range(0f, 1f)] public float frontSpawnChance = 0.75f;
+    [Tooltip("Nửa góc của cung spawn phía trước. 65 nghĩa là đàn có thể lệch tối đa 65 độ sang mỗi bên.")]
+    [Range(0f, 180f)] public float frontSpawnHalfAngle = 65f;
 
     [Header("Group Size Over Time")]
     [Tooltip("Số quái ít nhất trong một đàn ở đầu trận.")]
@@ -129,19 +133,9 @@ public class EnemySpawn : MonoBehaviour
         int groupSize = Random.Range(currentMinGroupSize, currentMaxGroupSize + 1);
         groupSize = Mathf.Min(groupSize, availableSlots);
 
-        Vector2 direction = Random.insideUnitCircle;
-        if (direction.sqrMagnitude < 0.001f)
-        {
-            direction = Vector2.right;
-        }
-
-        direction.Normalize();
+        Vector3 spawnDirection = GetSpawnDirection();
         float distance = Random.Range(minSpawnRadius, spawnRadius);
-        Vector3 groupCenter = playerTransform.position + new Vector3(
-            direction.x * distance,
-            0f,
-            direction.y * distance
-        );
+        Vector3 groupCenter = playerTransform.position + spawnDirection * distance;
 
         for (int i = 0; i < groupSize; i++)
         {
@@ -166,6 +160,32 @@ public class EnemySpawn : MonoBehaviour
             enemy.SetActive(true);
         }
     }
+
+    private Vector3 GetSpawnDirection()
+    {
+        if (Random.value <= frontSpawnChance)
+        {
+            Vector3 playerForward = playerTransform.forward;
+            playerForward.y = 0f;
+            if (playerForward.sqrMagnitude < 0.001f)
+            {
+                playerForward = Vector3.forward;
+            }
+
+            float angle = Random.Range(-frontSpawnHalfAngle, frontSpawnHalfAngle);
+            return Quaternion.Euler(0f, angle, 0f) * playerForward.normalized;
+        }
+
+        Vector2 randomDirection = Random.insideUnitCircle;
+        if (randomDirection.sqrMagnitude < 0.001f)
+        {
+            randomDirection = Vector2.right;
+        }
+
+        randomDirection.Normalize();
+        return new Vector3(randomDirection.x, 0f, randomDirection.y);
+    }
+
 
     private GameObject CreatePooledEnemy(GameObject prefab, ObjectPool<GameObject> ownerPool)
     {
@@ -322,6 +342,9 @@ public class EnemySpawn : MonoBehaviour
     {
         minSpawnRadius = Mathf.Max(0f, minSpawnRadius);
         spawnRadius = Mathf.Max(minSpawnRadius, spawnRadius);
+        groupSpreadRadius = Mathf.Max(0f, groupSpreadRadius);
+        frontSpawnChance = Mathf.Clamp01(frontSpawnChance);
+        frontSpawnHalfAngle = Mathf.Clamp(frontSpawnHalfAngle, 0f, 180f);
         startingMaxGroupSize = Mathf.Max(startingMinGroupSize, startingMaxGroupSize);
         finalMaxGroupSize = Mathf.Max(finalMinGroupSize, finalMaxGroupSize);
         maxActiveEnemies = Mathf.Max(1, maxActiveEnemies);

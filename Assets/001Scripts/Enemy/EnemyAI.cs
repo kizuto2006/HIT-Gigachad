@@ -82,6 +82,7 @@ public class EnemyAI : MonoBehaviour
 
         currentCell = flowField.GetCellFromWorldPos(transform.position);
         Vector3 directionToPlayer = player.position - transform.position;
+        directionToPlayer.y = 0f;
         float sqrDistance = directionToPlayer.sqrMagnitude;
         int raycastsUsed = 0;
 
@@ -101,9 +102,9 @@ public class EnemyAI : MonoBehaviour
         }
         else if (hasLineOfSight)
         {
-            cachedMovementDirection = new Vector3(directionToPlayer.x, 0f, directionToPlayer.z).normalized;
+            cachedMovementDirection = directionToPlayer.normalized;
         }
-        else if (currentCell != null)
+        else if (currentCell != null && currentCell.bestDirection.sqrMagnitude > 0.0001f)
         {
             cachedMovementDirection = new Vector3(
                 currentCell.bestDirection.x,
@@ -112,7 +113,8 @@ public class EnemyAI : MonoBehaviour
         }
         else
         {
-            cachedMovementDirection = Vector3.zero;
+            // Ngoài flow field hoặc ô chưa có hướng: vẫn đuổi trực tiếp để không bị mất phương hướng.
+            cachedMovementDirection = directionToPlayer.normalized;
         }
 
         return raycastsUsed;
