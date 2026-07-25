@@ -2575,7 +2575,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 28afbc390d203364697bdf14af436bb2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FlowFieldManager
-  gridSize: {x: 60, y: 60}
+  gridSize: {x: 160, y: 160}
   cellRadius: 0.5
   obstacleLayer:
     serializedVersion: 2

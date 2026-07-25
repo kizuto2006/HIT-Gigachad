@@ -49,6 +49,7 @@ public class EnemyAI : MonoBehaviour
         currentCell = FlowFieldManager.Instance.GetCellFromWorldPos(transform.position);
 
         Vector3 dirToPlayer = player.position - transform.position;
+        dirToPlayer.y = 0f;
 
         losTimer -= Time.deltaTime;
         if (losTimer <= 0f)
@@ -58,10 +59,12 @@ public class EnemyAI : MonoBehaviour
         }
 
         if (dirToPlayer.magnitude < 1.2f) return Vector3.zero;
-        else if (hasLineOfSight) return new Vector3(dirToPlayer.x, 0, dirToPlayer.z).normalized;
-        else if (currentCell != null) return new Vector3(currentCell.bestDirection.x, 0, currentCell.bestDirection.z).normalized;
+        else if (hasLineOfSight) return dirToPlayer.normalized;
+        else if (currentCell != null && currentCell.bestDirection.sqrMagnitude > 0.0001f)
+            return new Vector3(currentCell.bestDirection.x, 0, currentCell.bestDirection.z).normalized;
 
-        return Vector3.zero;
+        // Ngoài flow field hoặc ô chưa có hướng: vẫn đuổi trực tiếp về Player.
+        return dirToPlayer.normalized;
     }
 
     // --- HÀM NÀY DO MANAGER GỌI ĐỂ XỬ LÝ LEO TƯỜNG VÀ RƠI ---

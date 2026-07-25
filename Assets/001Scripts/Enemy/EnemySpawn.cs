@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.Pool;
 
 public class EnemySpawn : MonoBehaviour
@@ -7,8 +7,13 @@ public class EnemySpawn : MonoBehaviour
     public Transform playerTransform;
 
     [Header("Spawn Settings")]
+    [Min(0f)] public float minSpawnRadius = 15f;
     public float spawnRadius = 25f;
     public int enemiesPerSecond = 10;
+    [Tooltip("Tỷ lệ enemy được ưu tiên spawn trong cung phía trước hướng nhìn của Player.")]
+    [Range(0f, 1f)] public float frontSpawnChance = 0.75f;
+    [Tooltip("Nửa góc của cung spawn phía trước.")]
+    [Range(0f, 180f)] public float frontSpawnHalfAngle = 65f;
 
     [Header("Organization")]
     public Transform enemyContainer;
@@ -48,25 +53,51 @@ public class EnemySpawn : MonoBehaviour
     {
         GameObject enemy = enemyPool.Get();
 
-        // Lấy một hướng ngẫu nhiên 360 độ
-        Vector2 randomDir = Random.insideUnitCircle.normalized;
-        // Lấy khoảng cách ngẫu nhiên từ 15m đến 25m
-        float randomDist = Random.Range(15f, spawnRadius);
+        Vector3 spawnDirection = GetSpawnDirection();
+        float randomDist = Random.Range(minSpawnRadius, spawnRadius);
 
         Vector3 spawnPos = new Vector3(
-            playerTransform.position.x + randomDir.x * randomDist,
+            playerTransform.position.x + spawnDirection.x * randomDist,
             1.5f,
-            playerTransform.position.z + randomDir.y * randomDist
+            playerTransform.position.z + spawnDirection.z * randomDist
         );
 
         enemy.transform.position = spawnPos;
     }
 
+    private Vector3 GetSpawnDirection()
+    {
+        if (Random.value <= frontSpawnChance)
+        {
+            Vector3 playerForward = playerTransform.forward;
+            playerForward.y = 0f;
+            if (playerForward.sqrMagnitude < 0.001f)
+                playerForward = Vector3.forward;
+
+            float angle = Random.Range(-frontSpawnHalfAngle, frontSpawnHalfAngle);
+            return Quaternion.Euler(0f, angle, 0f) * playerForward.normalized;
+        }
+
+        Vector2 randomDirection = Random.insideUnitCircle;
+        if (randomDirection.sqrMagnitude < 0.001f)
+            randomDirection = Vector2.right;
+
+        randomDirection.Normalize();
+        return new Vector3(randomDirection.x, 0f, randomDirection.y);
+    }
     public void ReturnEnemyToPool(GameObject enemy)
     {
         enemyPool.Release(enemy);
     }
 
+    private void OnValidate()
+    {
+        minSpawnRadius = Mathf.Max(0f, minSpawnRadius);
+        spawnRadius = Mathf.Max(minSpawnRadius, spawnRadius);
+        frontSpawnChance = Mathf.Clamp01(frontSpawnChance);
+        frontSpawnHalfAngle = Mathf.Clamp(frontSpawnHalfAngle, 0f, 180f);
+        enemiesPerSecond = Mathf.Max(1, enemiesPerSecond);
+    }
     // --- HÀM VẼ GIAO DIỆN NHANH LÊN MÀN HÌNH GAME ---
     void OnGUI()
     {

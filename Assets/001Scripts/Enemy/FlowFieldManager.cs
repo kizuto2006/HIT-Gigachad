@@ -6,9 +6,12 @@ public class FlowFieldManager : MonoBehaviour
     public static FlowFieldManager Instance;
 
     [Header("Grid Settings")]
-    // Tăng kích thước lưới lên 100x100 để bao phủ trọn vẹn khu vực spawn quái vật
-    public Vector2Int gridSize = new Vector2Int(100, 100);
+    [Tooltip("160x160 với cell diameter 1 bao phủ 80m về mỗi phía.")]
+    public Vector2Int gridSize = new Vector2Int(160, 160);
+    [Min(0.1f)]
     public float cellRadius = 0.5f;
+    [Tooltip("Khoảng cách Player đi khỏi tâm lưới trước khi lưới được đặt lại.")]
+    [Min(1f)] public float recenterDistance = 30f;
     public LayerMask obstacleLayer; // Nhớ tạo Layer "Obstacles" và gán cho các bức tường
 
     [Header("Target")]
@@ -21,6 +24,7 @@ public class FlowFieldManager : MonoBehaviour
     void Awake()
     {
         Instance = this;
+        ClampSettings();
         cellDiameter = cellRadius * 2f;
         CreateGrid();
     }
@@ -29,7 +33,9 @@ public class FlowFieldManager : MonoBehaviour
     {
         if (playerTransform == null) return;
 
-        if (Vector3.Distance(transform.position, playerTransform.position) > 15f)
+        Vector3 offsetFromCenter = playerTransform.position - transform.position;
+        offsetFromCenter.y = 0f;
+        if (offsetFromCenter.sqrMagnitude > recenterDistance * recenterDistance)
         {
             transform.position = new Vector3(playerTransform.position.x, transform.position.y, playerTransform.position.z);
 
@@ -40,7 +46,7 @@ public class FlowFieldManager : MonoBehaviour
         Cell currentTargetCell = GetCellFromWorldPos(playerTransform.position);
 
         // Chỉ cập nhật lại các mũi tên khi Player bước sang ô đất khác
-        if (targetCell != currentTargetCell)
+        if (currentTargetCell != null && targetCell != currentTargetCell)
         {
             targetCell = currentTargetCell;
             GenerateIntegrationField(targetCell);
@@ -99,6 +105,7 @@ public class FlowFieldManager : MonoBehaviour
     {
         foreach (Cell c in grid)
         {
+            c.bestDirection = Vector3.zero;
             ushort bestCost = c.bestCost;
             List<Cell> neighbors = GetNeighborCells(c.gridIndex);
 
@@ -115,15 +122,21 @@ public class FlowFieldManager : MonoBehaviour
 
     public Cell GetCellFromWorldPos(Vector3 worldPos)
     {
-        // Tính điểm bắt đầu của lưới dựa theo vị trí thực tế của FlowFieldManager
-        Vector3 worldBottomLeft = transform.position - Vector3.right * gridSize.x / 2 * cellDiameter - Vector3.forward * gridSize.y / 2 * cellDiameter;
+        if (grid == null) return null;
 
-        // Tính toán phần trăm vị trí chính xác
-        float percentX = Mathf.Clamp01((worldPos.x - worldBottomLeft.x) / (gridSize.x * cellDiameter));
-        float percentY = Mathf.Clamp01((worldPos.z - worldBottomLeft.z) / (gridSize.y * cellDiameter));
+        Vector3 worldBottomLeft = transform.position
+            - Vector3.right * gridSize.x * 0.5f * cellDiameter
+            - Vector3.forward * gridSize.y * 0.5f * cellDiameter;
+        float localX = worldPos.x - worldBottomLeft.x;
+        float localZ = worldPos.z - worldBottomLeft.z;
+        float gridWorldWidth = gridSize.x * cellDiameter;
+        float gridWorldDepth = gridSize.y * cellDiameter;
 
-        int x = Mathf.RoundToInt((gridSize.x - 1) * percentX);
-        int y = Mathf.RoundToInt((gridSize.y - 1) * percentY);
+        if (localX < 0f || localX >= gridWorldWidth || localZ < 0f || localZ >= gridWorldDepth)
+            return null;
+
+        int x = Mathf.Clamp(Mathf.FloorToInt(localX / cellDiameter), 0, gridSize.x - 1);
+        int y = Mathf.Clamp(Mathf.FloorToInt(localZ / cellDiameter), 0, gridSize.y - 1);
         return grid[x, y];
     }
 
@@ -144,6 +157,18 @@ public class FlowFieldManager : MonoBehaviour
         return neighbors;
     }
 
+    private void OnValidate()
+    {
+        ClampSettings();
+    }
+
+    private void ClampSettings()
+    {
+        gridSize.x = Mathf.Max(1, gridSize.x);
+        gridSize.y = Mathf.Max(1, gridSize.y);
+        cellRadius = Mathf.Max(0.1f, cellRadius);
+        recenterDistance = Mathf.Max(1f, recenterDistance);
+    }
     // Hàm này sẽ vẽ các ô lưới và mũi tên ra màn hình Scene (chỉ hiển thị trong Editor)
     void OnDrawGizmos()
     {
