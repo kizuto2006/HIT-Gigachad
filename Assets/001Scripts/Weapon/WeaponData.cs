@@ -49,6 +49,8 @@ public class WeaponData : ScriptableObject
     [Min(1)] public int projectileCount = 1;
     [Tooltip("Hệ số kích thước hitbox hoặc projectile.")]
     [Min(0.01f)] public float size = 1f;
+    [Tooltip("Hiển thị Size trên thẻ nâng cấp dưới dạng phần trăm so với kích thước gốc.")]
+    public bool displaySizeAsPercent;
     [Tooltip("Thời gian chờ giữa hai lần đánh, tính bằng giây.")]
     [Min(0.01f)] public float cooldown = 0.5f;
     [Tooltip("Giới hạn attack-speed multiplier riêng của vũ khí. 0 = không giới hạn.")]
@@ -96,8 +98,14 @@ public class WeaponData : ScriptableObject
     [Min(0f)] public float automaticKnockbackBonus = 0.12f;
     [Tooltip("Cứ bao nhiêu cấp thì nhận thêm chỉ số thứ hai.")]
     [Min(2)] public int automaticSecondStatInterval = 3;
+    [Tooltip("Random việc nhận thêm chỉ số thứ hai thay vì dùng mốc level cố định.")]
+    public bool randomizeAutomaticSecondStat;
+    [Tooltip("Xác suất một level nhận thêm chỉ số thứ hai. Kết quả ổn định theo weapon và level.")]
+    [Range(0f, 1f)] public float automaticSecondStatChance = 0.5f;
     [Tooltip("Khoảng cách giữa các lần tăng projectile count sau cấp 2.")]
     [Min(2)] public int automaticProjectileCountInterval = 10;
+    [Tooltip("Tắt các mốc tự tăng projectile count nhưng vẫn giữ bonus projectile từ Player.")]
+    public bool disableAutomaticProjectileCountUpgrades;
     [Min(1)] public int automaticMaxProjectileCount = 4;
     [Tooltip("Bảo đảm vũ khí đạt ít nhất 2 projectile ngay khi lên cấp 2.")]
     public bool grantSecondProjectileAtLevel2 = true;
@@ -158,7 +166,8 @@ public class WeaponData : ScriptableObject
                         ref levelKnockbackBonus);
                 }
 
-                bool projectileCountDue = automaticProjectileCountInterval > 0
+                bool projectileCountDue = !disableAutomaticProjectileCountUpgrades
+                    && automaticProjectileCountInterval > 0
                     && (targetLevel - 2) % automaticProjectileCountInterval == 0
                     && projectileCount + levelProjectileCountBonus < automaticMaxProjectileCount;
 
@@ -166,9 +175,12 @@ public class WeaponData : ScriptableObject
                 {
                     levelProjectileCountBonus++;
                 }
-                else if (automaticStatCount > 1
-                    && automaticSecondStatInterval > 0
-                    && (targetLevel - 2) % automaticSecondStatInterval == 0)
+                bool secondStatDue = randomizeAutomaticSecondStat
+                    ? RollAutomaticSecondStat(targetLevel)
+                    : automaticSecondStatInterval > 0
+                        && (targetLevel - 2) % automaticSecondStatInterval == 0;
+
+                if (!projectileCountDue && automaticStatCount > 1 && secondStatDue)
                 {
                     int secondaryOffset = Mathf.Min(2, automaticStatCount - 1);
                     int secondaryStat = GetAutomaticStatAt((primarySequenceIndex + secondaryOffset) % automaticStatCount);
@@ -236,6 +248,29 @@ public class WeaponData : ScriptableObject
         }
     }
 
+    private bool RollAutomaticSecondStat(int targetLevel)
+    {
+        unchecked
+        {
+            uint hash = 2166136261u;
+            string stableId = string.IsNullOrEmpty(id) ? weaponName : id;
+            if (!string.IsNullOrEmpty(stableId))
+            {
+                for (int i = 0; i < stableId.Length; i++)
+                {
+                    hash ^= stableId[i];
+                    hash *= 16777619u;
+                }
+            }
+
+            hash ^= (uint)targetLevel;
+            hash *= 16777619u;
+            hash ^= hash >> 16;
+            float roll = (hash & 0x00FFFFFFu) / 16777216f;
+            return roll < automaticSecondStatChance;
+        }
+    }
+
 
     private void OnValidate()
     {
@@ -250,6 +285,7 @@ public class WeaponData : ScriptableObject
         cooldown = Mathf.Max(0.01f, cooldown);
         maxLevel = Mathf.Max(1, maxLevel);
         automaticSecondStatInterval = Mathf.Max(2, automaticSecondStatInterval);
+        automaticSecondStatChance = Mathf.Clamp01(automaticSecondStatChance);
         automaticProjectileCountInterval = Mathf.Max(2, automaticProjectileCountInterval);
         automaticMaxProjectileCount = Mathf.Max(projectileCount, automaticMaxProjectileCount);
     }

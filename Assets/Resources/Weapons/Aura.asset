@@ -24,7 +24,8 @@ MonoBehaviour:
   additionalProjectileDamageMultiplier: 0.5
   projectileCount: 1
   size: 4.5
-  cooldown: 0.25
+  displaySizeAsPercent: 1
+  cooldown: 0.5
   maxAttackSpeedMultiplier: 2
   pierce: 0
   knockback: 0.5
@@ -38,14 +39,17 @@ MonoBehaviour:
   sizePerLevel: 0.35
   projCountPerLevel: 0
   useAutomaticLevelUpgrades: 1
-  automaticUpgradeStats: 7
-  automaticDamageBonus: 0.75
-  automaticSizeBonus: 0.06
+  automaticUpgradeStats: 3
+  automaticDamageBonus: 1.2
+  automaticSizeBonus: 0.45
   automaticProjectileSpeedBonus: 0.5
   automaticCooldownReduction: 0
   automaticKnockbackBonus: 0
   automaticSecondStatInterval: 4
+  randomizeAutomaticSecondStat: 1
+  automaticSecondStatChance: 0.5
   automaticProjectileCountInterval: 15
+  disableAutomaticProjectileCountUpgrades: 1
   automaticMaxProjectileCount: 21
   grantSecondProjectileAtLevel2: 0
   attackType: 3

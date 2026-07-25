@@ -150,7 +150,23 @@ public class UpgradeOption
 
         AddChange(changes, WeaponStatKind.Damage, "DAMAGE", currentStats.damage, nextStats.damage, false, false, false, includeUnchanged);
         AddChange(changes, WeaponStatKind.Cooldown, "COOLDOWN", currentStats.cooldown, nextStats.cooldown, false, false, true, includeUnchanged);
-        AddChange(changes, WeaponStatKind.Size, "SIZE", currentStats.size, nextStats.size, false, false, false, includeUnchanged);
+        if (weapon != null && weapon.displaySizeAsPercent && weapon.size > 0.0001f)
+        {
+            AddChange(
+                changes,
+                WeaponStatKind.Size,
+                "SIZE",
+                currentStats.size / weapon.size,
+                nextStats.size / weapon.size,
+                false,
+                true,
+                false,
+                includeUnchanged);
+        }
+        else
+        {
+            AddChange(changes, WeaponStatKind.Size, "SIZE", currentStats.size, nextStats.size, false, false, false, includeUnchanged);
+        }
         AddChange(changes, WeaponStatKind.ProjectileSpeed, "PROJECTILE SPEED", currentStats.projectileSpeed, nextStats.projectileSpeed, false, false, false, includeUnchanged);
         AddChange(changes, WeaponStatKind.ProjectileCount, "PROJECTILES", currentStats.projectileCount, nextStats.projectileCount, true, false, false, includeUnchanged);
         AddChange(changes, WeaponStatKind.Knockback, "KNOCKBACK", currentStats.knockback, nextStats.knockback, false, false, false, includeUnchanged);
