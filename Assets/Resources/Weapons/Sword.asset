@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70b7107a794942b9a4628d3999958537, type: 3}
+  m_Name: Sword
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponData
+  id: sword
+  weaponName: Sword
+  description: Slashes enemies in front of the player.
+  icon: {fileID: 21300000, guid: 4c913eda62fc7fe4fb78676ea9b622ba, type: 3}
+  weaponType: 0
+  rarity: 0
+  atk: 10
+  crit: 0.1
+  projectileSpeed: 10
+  additionalProjectileDamageMultiplier: 0.5
+  projectileCount: 1
+  size: 3.5
+  cooldown: 1.25
+  maxAttackSpeedMultiplier: 3
+  pierce: 0
+  knockback: 1.25
+  duration: 0.25
+  hitInterval: 0.5
+  orbitRadius: 2
+  orbitSpeed: 180
+  maxLevel: 40
+  damagePerLevel: 3
+  cooldownReductionPerLevel: 0.05
+  sizePerLevel: 0.1
+  projCountPerLevel: 0
+  useAutomaticLevelUpgrades: 1
+  automaticUpgradeStats: -1
+  automaticDamageBonus: 2
+  automaticSizeBonus: 0.1
+  automaticProjectileSpeedBonus: 0.75
+  automaticCooldownReduction: 0.025
+  automaticKnockbackBonus: 0.08
+  automaticSecondStatInterval: 4
+  automaticProjectileCountInterval: 15
+  automaticMaxProjectileCount: 4
+  grantSecondProjectileAtLevel2: 1
+  attackType: 0
+  attackEffectPrefab: {fileID: 3465020291432006897, guid: d1ebc9d344411354d806519e621cf177, type: 3}
+  projectilePrefab: {fileID: 0}
+  attackAnimation: {fileID: 0}
+  attackSound: {fileID: 0}

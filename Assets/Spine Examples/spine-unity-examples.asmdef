@@ -1,0 +1,5 @@
+{
+	"name": "spine-unity-examples",
+    "references": [ "spine-unity", "spine-csharp" ],
+    "defineConstraints": [ "SPINE_EXAMPLES" ]
+}

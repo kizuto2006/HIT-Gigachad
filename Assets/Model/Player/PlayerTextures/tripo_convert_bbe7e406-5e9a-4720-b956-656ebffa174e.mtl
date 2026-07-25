@@ -1,0 +1,16 @@
+# Blender 5.0.1 MTL File: 'None'
+# www.blender.org
+
+newmtl tripo_mat_bbe7e406-5e9a-4720-b956-656ebffa174e
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd muscular_humanoid_3d_model_basecolor.JPEG
+map_Ns muscular_humanoid_3d_model_roughness.JPEG
+map_Pr muscular_humanoid_3d_model_roughness.JPEG
+map_refl muscular_humanoid_3d_model_metallic.JPEG
+map_Pm muscular_humanoid_3d_model_metallic.JPEG
+map_Bump -bm 1.000000 muscular_humanoid_3d_model_normal.JPEG

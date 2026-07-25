@@ -1,0 +1,23 @@
+fileFormatVersion: 2
+guid: 031af10d85af6584ba2a23a11216a023
+TrueTypeFontImporter:
+  externalObjects: {}
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontNames:
+  - Mario
+  fallbackFontReferences:
+  - {fileID: 12800000, guid: 2443ac267847e8746ac916f02bf6e440, type: 3}
+  - {fileID: 12800000, guid: a8277f1d293c2ab4f8d6a0be035a1c41, type: 3}
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  useLegacyBoundsCalculation: 0
+  shouldRoundAdvanceValue: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
