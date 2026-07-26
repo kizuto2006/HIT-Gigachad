@@ -40,6 +40,16 @@ public class EnemyHealth : MonoBehaviour
     private Vector3 baseBoxSize;
     private float baseColliderRadius;
     private float baseCapsuleHeight;
+
+    private bool isSpawnProtected;
+
+    public bool CanBeTargeted =>
+        isActiveAndEnabled &&
+        !isDying &&
+        !isDead &&
+        !isSpawnProtected &&
+        data != null &&
+        currentHp > 0f;
     private bool isDead;
 
     private void Awake()
@@ -58,9 +68,17 @@ public class EnemyHealth : MonoBehaviour
         ownerSpawner = spawner;
     }
 
+internal void SetSpawnProtection(bool isProtected)
+    {
+        isSpawnProtected = isProtected;
+    }
+
+
     /// <summary>Reset trạng thái sống và scale mỗi lần object được lấy từ pool.</summary>
     public void ResetForSpawn()
     {
+
+        isSpawnProtected = false;
         isDead = false;
 
         if (data == null || scaleTarget == null)
@@ -209,12 +227,12 @@ public class EnemyHealth : MonoBehaviour
     /// Nhận damage sau khi trừ armor. isEliteDmg để dành cho hệ thống sau.
     /// Công thức damage đầu vào (tính ở nơi gọi): raw = weaponBaseDmg * (1 + bonusAtkPct)
     /// </summary>
-    public void TakeDamage(float raw, bool isEliteDmg = false)
+public void TakeDamage(float raw, bool isEliteDmg = false)
     {
-        if (isDying)
+        if (!CanBeTargeted)
             return;
 
-        float finalDmg = Mathf.Max(0f, raw - data.armor);
+        float finalDmg = GetExpectedDamage(raw);
         if (finalDmg <= 0f)
             return;
 
@@ -350,24 +368,39 @@ public class EnemyHealth : MonoBehaviour
         }
     }
 
-    private void Die()
+private void Die()
     {
-        if (isDead) return;
-        isDead = true;
+        if (isDead)
+            return;
 
+        isDead = true;
         Debug.Log($"{gameObject.name} died");
 
-        // Drop XP gem
         if (xpGemPrefab != null && data != null)
         {
-            Instantiate(xpGemPrefab, transform.position, Quaternion.identity);
+            XPGem gem = XPGemPool.Spawn(xpGemPrefab, transform.position, Quaternion.identity);
+            if (gem != null)
+            {
+                gem.xpAmount = Mathf.Max(1, data.xpReward);
+            }
         }
 
-        // Tìm EnemySpawn và return về pool thay vì SetActive(false) trực tiếp
-        EnemySpawn spawner = FindAnyObjectByType<EnemySpawn>();
-        if (spawner != null)
-            spawner.ReturnEnemyToPool(gameObject);
+        if (ownerSpawner != null)
+        {
+            ownerSpawner.ReturnEnemyToPool(gameObject);
+        }
         else
-            gameObject.SetActive(false);
+        {
+            Destroy(gameObject);
+        }
+    }
+
+
+public float GetExpectedDamage(float rawDamage)
+    {
+        if (data == null)
+            return 0f;
+
+        return Mathf.Max(0f, rawDamage - data.armor);
     }
 }

@@ -3350,10 +3350,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: be91e79047d149f429ead94973e37df8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawn
-  enemyPrefab: {fileID: 4143679461618142046, guid: fddb9b249b807944a9b0cda31aed85e4, type: 3}
+  enemyPrefab: {fileID: 0}
   playerTransform: {fileID: 823939097}
   spawnRadius: 20.62
-  enemiesPerSecond: 50
   enemyContainer: {fileID: 2124225032}
   activeEnemyCount: 0
 --- !u!4 &584029583

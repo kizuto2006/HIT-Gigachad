@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 /// <summary>
@@ -59,9 +60,35 @@ public class XPGem : MonoBehaviour
     private bool isDropping;
     private float dropTimer;
     private Vector3 dropStartPosition;
+    private Vector3 originalLocalScale;
+    private Action<XPGem> releaseToPool;
 
-    void Start()
+    private void Awake()
     {
+        originalLocalScale = transform.localScale;
+    }
+
+    private void OnEnable()
+    {
+        ResetForSpawn();
+    }
+
+    internal void SetPoolRelease(Action<XPGem> releaseAction)
+    {
+        releaseToPool = releaseAction;
+    }
+
+    private void ResetForSpawn()
+    {
+        collected = false;
+        timer = 0f;
+        isMagneting = false;
+        isDropping = false;
+        dropTimer = 0f;
+        playerTransform = null;
+        xpSystem = null;
+        playerStats = null;
+        transform.localScale = originalLocalScale;
         // Tìm player
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
@@ -127,7 +154,7 @@ public class XPGem : MonoBehaviour
         timer += Time.deltaTime;
         if (timer >= lifetime)
         {
-            Destroy(gameObject);
+            Despawn();
             return;
         }
 
@@ -231,6 +258,17 @@ public class XPGem : MonoBehaviour
         }
 
         // TODO: Thêm VFX/SFX thu gem ở đây
+        Despawn();
+    }
+
+    private void Despawn()
+    {
+        if (releaseToPool != null)
+        {
+            releaseToPool(this);
+            return;
+        }
+
         Destroy(gameObject);
     }
 

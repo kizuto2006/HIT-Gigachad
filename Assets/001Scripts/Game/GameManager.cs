@@ -37,7 +37,7 @@ public sealed class GameManager : MonoBehaviour
         managerObject.AddComponent<GameManager>();
     }
 
-    private void Awake()
+private void Awake()
     {
         if (Instance != null && Instance != this)
         {
@@ -46,9 +46,19 @@ public sealed class GameManager : MonoBehaviour
         }
 
         Instance = this;
+        DetachFromParentForPersistence();
         DontDestroyOnLoad(gameObject);
         SceneManager.sceneLoaded += HandleSceneLoaded;
     }
+
+private void DetachFromParentForPersistence()
+    {
+        if (transform.parent != null)
+        {
+            transform.SetParent(null, true);
+        }
+    }
+
 
     private void Start()
     {

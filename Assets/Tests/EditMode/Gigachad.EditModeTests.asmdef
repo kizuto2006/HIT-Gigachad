@@ -1,0 +1,11 @@
+{
+    "name": "Gigachad.EditModeTests",
+    "references": [],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "autoReferenced": false
+}

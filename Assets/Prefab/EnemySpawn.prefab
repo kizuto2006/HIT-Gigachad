@@ -44,10 +44,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ef2ae7842a7c74642931f37579d7b349, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyManager
-  activeEnemies: []
+  flowFieldManager: {fileID: 0}
+  playerTransform: {fileID: 0}
   runSpeed: 1
   separationRadius: 0.4
   separationForce: 1.5
+  nearDistance: 10
+  middleDistance: 25
+  nearDirectionInterval: 0.05
+  middleDirectionInterval: 0.12
+  farDirectionInterval: 0.35
+  nearEnvironmentInterval: 0.08
+  middleEnvironmentInterval: 0.18
+  farEnvironmentInterval: 0.5
+  maxRaycastsPerFrame: 48
+  activeEnemyCount: 0
+  nativeCapacity: 0
+  raycastsUsedLastFrame: 0
 --- !u!1 &4909554430829602257
 GameObject:
   m_ObjectHideFlags: 0
@@ -94,10 +107,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FlowFieldManager
   gridSize: {x: 60, y: 60}
   cellRadius: 0.5
+  recenterDistance: 30
   obstacleLayer:
     serializedVersion: 2
     m_Bits: 64
   playerTransform: {fileID: 0}
+  drawFlowFieldGizmos: 0
 --- !u!1 &8907200627004587908
 GameObject:
   m_ObjectHideFlags: 0
@@ -144,9 +159,44 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: be91e79047d149f429ead94973e37df8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawn
-  enemyPrefab: {fileID: 4143679461618142046, guid: fddb9b249b807944a9b0cda31aed85e4, type: 3}
+  additionalEnemyPrefabs:
+  - {fileID: 3830870348430089234, guid: 2080ad25292d1b14e99063790099074c, type: 3}
+  - {fileID: 591085498499679587, guid: e46cb52c480fc8e4c8c6d93bdaae21c0, type: 3}
+  enemyPrefab: {fileID: 591085498499679587, guid: 5842d2a93ce72d34694772ba549bb4ea, type: 3}
   playerTransform: {fileID: 0}
-  spawnRadius: 20.62
-  enemiesPerSecond: 10
+  enemyTypes:
+  - prefab: {fileID: 591085498499679587, guid: 5842d2a93ce72d34694772ba549bb4ea, type: 3}
+    earlyWeight: 55
+    lateWeight: 30
+  - prefab: {fileID: 3830870348430089234, guid: 2080ad25292d1b14e99063790099074c, type: 3}
+    earlyWeight: 40
+    lateWeight: 25
+  - prefab: {fileID: 591085498499679587, guid: e46cb52c480fc8e4c8c6d93bdaae21c0, type: 3}
+    earlyWeight: 5
+    lateWeight: 45
+  enemyMixRampStart: 60
+  enemyMixTransitionDuration: 30
+  minSpawnRadius: 10
+  spawnRadius: 17
+  groupSpreadRadius: 2
+  frontSpawnChance: 0.9
+  frontSpawnHalfAngle: 45
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 128
+  startingMinGroupSize: 1
+  startingMaxGroupSize: 2
+  groupSizeStepSeconds: 30
+  groupSizeIncreasePerStep: 1
+  maximumGroupSize: 10
+  groupInterval: 2.25
+  maxActiveEnemies: 300
+  initialPoolSize: 100
+  emergenceDepth: 2
+  emergenceDuration: 0.8
+  emergenceStagger: 0.08
   enemyContainer: {fileID: 1917463016726593324}
   activeEnemyCount: 0
+  elapsedTime: 0
+  currentMinGroupSize: 0
+  currentMaxGroupSize: 0

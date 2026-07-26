@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac68658aecada701fb4328d4ed4ff287, type: 3}
   m_Name: EnemyData_Skeleton
   m_EditorClassIdentifier: Assembly-CSharp::EnemyData
-  hp: 12
-  atk: 5
-  speed: 2.1
+  hp: 10
+  atk: 7
+  speed: 2.75
   armor: 0
   size: 1
-  xpReward: 5
+  xpReward: 2

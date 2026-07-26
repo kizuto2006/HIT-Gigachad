@@ -13,8 +13,8 @@ public class EnemyContactDamage : MonoBehaviour
     [Header("── Contact Settings ──")]
     [Tooltip("Cooldown giữa các lần gây damage khi chạm liên tục (giây)")]
     public float damageCooldown = 1f;
-    [Tooltip("Lực đẩy lùi player khi chạm")]
-    public float knockbackForce = 15f;
+    [Tooltip("Tốc độ enemy đẩy player liên tục khi đang chạm (m/giây)")]
+    [Min(0f)] public float contactPushSpeed = 3f;
 
     private PlayerHealth playerHealth;
     private PlayerSimpleMovement playerMovement;
@@ -51,17 +51,12 @@ public class EnemyContactDamage : MonoBehaviour
         if (!other.CompareTag("Player")) return;
         if (data == null) return;
 
+        PushPlayerContinuously();
+
         if (Time.time >= lastDamageTime + damageCooldown)
         {
             lastDamageTime = Time.time;
             playerHealth.TakeDamage(data.atk);
-            
-            if (playerMovement != null)
-            {
-                Vector3 dir = (playerHealth.transform.position - transform.position);
-                dir.y = 0f;
-                playerMovement.ApplyKnockback(dir.normalized * knockbackForce);
-            }
             
             Debug.Log($"[Contact] {gameObject.name} dealt {data.atk:F1} damage to Player");
         }
@@ -86,14 +81,19 @@ public class EnemyContactDamage : MonoBehaviour
             lastDamageTime = Time.time;
             playerHealth.TakeDamage(data.atk);
             
-            if (playerMovement != null)
-            {
-                Vector3 dir = (playerHealth.transform.position - transform.position);
-                dir.y = 0f;
-                playerMovement.ApplyKnockback(dir.normalized * knockbackForce);
-            }
-            
             Debug.Log($"[Contact] {gameObject.name} dealt {data.atk:F1} damage to Player (first hit)");
         }
+    }
+
+    private void PushPlayerContinuously()
+    {
+        if (playerMovement == null || contactPushSpeed <= 0f)
+        {
+            return;
+        }
+
+        Vector3 direction = playerHealth.transform.position - transform.position;
+        direction.y = 0f;
+        playerMovement.ApplyContactPush(direction, contactPushSpeed);
     }
 }

@@ -35,6 +35,7 @@ Shader "Gigachad/Megabonk/Toon Lit"
             #pragma vertex OutlineVert
             #pragma fragment OutlineFrag
             #pragma multi_compile_instancing
+            #pragma multi_compile_fog
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
@@ -60,6 +61,7 @@ Shader "Gigachad/Megabonk/Toon Lit"
             struct OutlineVaryings
             {
                 float4 positionCS : SV_POSITION;
+                half fogFactor : TEXCOORD0;
             };
 
             OutlineVaryings OutlineVert(OutlineAttributes input)
@@ -74,12 +76,13 @@ Shader "Gigachad/Megabonk/Toon Lit"
                 float2 pixelOffset = outlineDirection * (2.0 * _OutlineWidth / _ScreenParams.xy);
                 positionCS.xy += pixelOffset * positionCS.w;
                 output.positionCS = positionCS;
+                output.fogFactor = ComputeFogFactor(positionCS.z);
                 return output;
             }
 
             half4 OutlineFrag(OutlineVaryings input) : SV_Target
             {
-                return _OutlineColor;
+                return half4(MixFog(_OutlineColor.rgb, input.fogFactor), _OutlineColor.a);
             }
             ENDHLSL
         }

@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac68658aecada701fb4328d4ed4ff287, type: 3}
   m_Name: EnemyData_Mummy
   m_EditorClassIdentifier: Assembly-CSharp::EnemyData
-  hp: 12
-  atk: 5
-  speed: 3
-  armor: 0
+  hp: 15
+  atk: 10
+  speed: 2.25
+  armor: 1
   size: 1
-  xpReward: 5
+  xpReward: 3

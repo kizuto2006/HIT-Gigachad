@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: MegabonkDesertPanoramicSkybox
-  m_Shader: {fileID: 108, guid: 0000000000000000f000000000000000, type: 0}
+  m_Shader: {fileID: 4800000, guid: 28c37373f06e82b4cadb981cac90c002, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -36,6 +36,7 @@ Material:
     - _Mapping: 1
     - _MirrorOnBack: 0
     - _Rotation: 0
+    - _VerticalOffset: 0.06
     m_Colors:
     - _Tint: {r: 0.92, g: 0.88, b: 0.76, a: 1}
   m_BuildTextureStacks: []

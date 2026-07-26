@@ -230,6 +230,21 @@ public class PlayerSimpleMovement : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Moves the player with an enemy that is maintaining contact. Unlike knockback,
+    /// this does not add momentum, so the player stops being pushed as soon as contact ends.
+    /// </summary>
+    public void ApplyContactPush(Vector3 direction, float speed)
+    {
+        direction.y = 0f;
+        if (controller == null || direction.sqrMagnitude < 0.0001f || speed <= 0f)
+        {
+            return;
+        }
+
+        controller.Move(direction.normalized * speed * Time.fixedDeltaTime);
+    }
+
     private void CacheAnimatorParameters()
     {
         if (animator == null)

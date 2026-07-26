@@ -81,7 +81,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyContactDamage
   data: {fileID: 11400000, guid: a29771c26fc2e7d45a58122f22232303, type: 2}
   damageCooldown: 1
-  knockbackForce: 15
+  contactPushSpeed: 3
 --- !u!136 &6117137711646228130
 CapsuleCollider:
   m_ObjectHideFlags: 0

@@ -152,22 +152,49 @@ public abstract class WeaponBehaviour : MonoBehaviour
     /// <summary>
     /// Tìm enemy gần nhất trong range. Trả về null nếu không có.
     /// </summary>
-    protected Transform FindClosestEnemy(float range)
+protected Transform FindClosestEnemy(
+        float range,
+        float incomingProjectileDamage = 0f)
     {
-        Collider[] hits = Physics.OverlapSphere(playerTransform.position, range, enemyLayer);
-        if (hits.Length == 0) return null;
+        Collider[] hits = Physics.OverlapSphere(
+            playerTransform.position,
+            range,
+            enemyLayer,
+            QueryTriggerInteraction.Collide);
+        if (hits.Length == 0)
+            return null;
 
         Transform closest = null;
-        float closestDist = float.MaxValue;
+        float closestDistance = float.MaxValue;
 
         foreach (Collider col in hits)
         {
-            float dist = Vector3.SqrMagnitude(col.transform.position - playerTransform.position);
-            if (dist < closestDist)
+            EnemyHealth enemy = col.GetComponent<EnemyHealth>();
+            if (enemy == null)
+                enemy = col.GetComponentInParent<EnemyHealth>();
+
+            if (enemy == null || !enemy.CanBeTargeted)
+                continue;
+
+            if (incomingProjectileDamage > 0f &&
+                enemy.GetExpectedDamage(incomingProjectileDamage) <= 0f)
             {
-                closestDist = dist;
-                closest = col.transform;
+                continue;
             }
+
+            if (incomingProjectileDamage > 0f &&
+                Projectile.HasEnoughIncomingDamageToKill(enemy))
+            {
+                continue;
+            }
+
+            float distance = Vector3.SqrMagnitude(
+                col.bounds.center - playerTransform.position);
+            if (distance >= closestDistance)
+                continue;
+
+            closestDistance = distance;
+            closest = col.transform;
         }
 
         return closest;

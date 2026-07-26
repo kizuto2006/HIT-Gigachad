@@ -17,9 +17,28 @@ public class EnemyAI : MonoBehaviour
     private float nextDirectionUpdateTime;
     private float nextEnvironmentCheckTime;
 
+    private EnemyHealth enemyHealth;
+    private bool isMovementLocked;
+
     private static readonly RaycastHit[] GroundHits = new RaycastHit[8];
 
     public Vector3 CachedMovementDirection => cachedMovementDirection;
+
+    public float MoveSpeed
+    {
+        get
+        {
+            if (enemyHealth == null)
+            {
+                enemyHealth = GetComponent<EnemyHealth>();
+            }
+
+            return enemyHealth != null && enemyHealth.data != null
+                ? Mathf.Max(0f, enemyHealth.data.speed)
+                : 0f;
+        }
+    }
+    public bool IsMovementLocked => isMovementLocked;
     public float SqrDistanceTo(Vector3 position) => (transform.position - position).sqrMagnitude;
 
     private void OnEnable()
@@ -31,7 +50,18 @@ public class EnemyAI : MonoBehaviour
         cachedMovementDirection = Vector3.zero;
         nextDirectionUpdateTime = 0f;
         nextEnvironmentCheckTime = 0f;
+        isMovementLocked = false;
 
+        if (EnemyManager.Instance != null)
+        {
+            EnemyManager.Instance.RegisterEnemy(this);
+        }
+    }
+
+    private void Start()
+    {
+        // A scene-placed enemy can enable before EnemyManager.Awake runs.
+        // RegisterEnemy is idempotent, so this is also safe for pooled enemies.
         if (EnemyManager.Instance != null)
         {
             EnemyManager.Instance.RegisterEnemy(this);
@@ -63,6 +93,21 @@ public class EnemyAI : MonoBehaviour
     }
 
     /// <summary>
+    /// Boss skills use this to prevent the shared movement job from sliding the enemy
+    /// during telegraph, attack and recovery windows.
+    /// </summary>
+    public void SetMovementLocked(bool locked)
+    {
+        isMovementLocked = locked;
+        cachedMovementDirection = Vector3.zero;
+
+        if (!locked)
+        {
+            nextDirectionUpdateTime = 0f;
+        }
+    }
+
+    /// <summary>
     /// Cập nhật hướng AI ở tần suất thấp hơn frame rate và lưu lại để Job sử dụng.
     /// Trả về số raycast đã dùng trong lần cập nhật này.
     /// </summary>
@@ -74,7 +119,7 @@ public class EnemyAI : MonoBehaviour
     {
         nextDirectionUpdateTime = Time.time + JitterInterval(updateInterval);
 
-        if (isClimbing || player == null || flowField == null)
+        if (isMovementLocked || isClimbing || player == null || flowField == null)
         {
             cachedMovementDirection = Vector3.zero;
             return 0;

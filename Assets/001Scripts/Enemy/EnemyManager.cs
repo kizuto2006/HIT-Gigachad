@@ -45,6 +45,8 @@ public class EnemyManager : MonoBehaviour
 
     private readonly Dictionary<EnemyAI, int> enemyIndices = new Dictionary<EnemyAI, int>(512);
     private NativeArray<float3> positions;
+
+    private NativeArray<float> moveSpeeds;
     private NativeArray<float3> moveDirections;
     private NativeArray<float3> newPositions;
     private NativeArray<byte> separationEnabled;
@@ -281,6 +283,8 @@ public class EnemyManager : MonoBehaviour
 
         nativeCapacity = Mathf.NextPowerOfTwo(Mathf.Max(128, requiredCount));
         positions = new NativeArray<float3>(nativeCapacity, Allocator.Persistent);
+
+        moveSpeeds = new NativeArray<float>(nativeCapacity, Allocator.Persistent);
         moveDirections = new NativeArray<float3>(nativeCapacity, Allocator.Persistent);
         newPositions = new NativeArray<float3>(nativeCapacity, Allocator.Persistent);
         separationEnabled = new NativeArray<byte>(nativeCapacity, Allocator.Persistent);
@@ -299,6 +303,9 @@ public class EnemyManager : MonoBehaviour
             EnemyAI enemy = activeEnemies[i];
             float3 position = enemy.transform.position;
             positions[i] = position;
+
+            float configuredSpeed = enemy.MoveSpeed;
+            moveSpeeds[i] = configuredSpeed > 0f ? configuredSpeed : runSpeed;
             moveDirections[i] = enemy.CachedMovementDirection;
             separationEnabled[i] = (byte)(playerTransform != null &&
                 ((Vector3)position - playerPosition).sqrMagnitude <= separationLodSqr ? 1 : 0);
@@ -314,12 +321,12 @@ public class EnemyManager : MonoBehaviour
         {
             positions = positions,
             moveDirections = moveDirections,
+            moveSpeeds = moveSpeeds,
             separationEnabled = separationEnabled,
             spatialHash = spatialHash,
             agentCount = count,
             cellSize = Mathf.Max(0.1f, separationRadius),
             deltaTime = Time.deltaTime,
-            runSpeed = runSpeed,
             separationRadius = separationRadius,
             separationForce = separationForce,
             newPositions = newPositions
@@ -354,6 +361,8 @@ public class EnemyManager : MonoBehaviour
     private void DisposeNativeData()
     {
         if (positions.IsCreated) positions.Dispose();
+
+        if (moveSpeeds.IsCreated) moveSpeeds.Dispose();
         if (moveDirections.IsCreated) moveDirections.Dispose();
         if (newPositions.IsCreated) newPositions.Dispose();
         if (separationEnabled.IsCreated) separationEnabled.Dispose();
@@ -390,12 +399,12 @@ public struct EnemyUpdateJob : IJobParallelFor
 {
     [ReadOnly] public NativeArray<float3> positions;
     [ReadOnly] public NativeArray<float3> moveDirections;
+    [ReadOnly] public NativeArray<float> moveSpeeds;
     [ReadOnly] public NativeArray<byte> separationEnabled;
     [ReadOnly] public NativeParallelMultiHashMap<int, int> spatialHash;
     public int agentCount;
     public float cellSize;
     public float deltaTime;
-    public float runSpeed;
     public float separationRadius;
     public float separationForce;
     public NativeArray<float3> newPositions;
@@ -443,7 +452,7 @@ public struct EnemyUpdateJob : IJobParallelFor
             }
         }
 
-        float3 finalMovement = moveDirections[index] * runSpeed + separationMove;
+        float3 finalMovement = moveDirections[index] * moveSpeeds[index] + separationMove;
         newPositions[index] = currentPosition + finalMovement * deltaTime;
     }
 

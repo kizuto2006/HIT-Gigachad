@@ -92,7 +92,7 @@ public sealed class SlashVFX : MonoBehaviour
     {
         if (!Application.isPlaying) return;
 
-        elapsed += Time.deltaTime;
+        elapsed += Time.deltaTime ;
         Animate(elapsed);
 
         if (elapsed >= duration)

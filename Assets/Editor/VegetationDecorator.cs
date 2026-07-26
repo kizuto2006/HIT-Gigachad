@@ -62,7 +62,7 @@ public class VegetationDecorator : Editor
             vegetation.SetActive(true);
 
             // Get terrain bounds
-            Terrain terrain = Object.FindObjectOfType<Terrain>();
+            Terrain terrain = Object.FindFirstObjectByType<Terrain>();
             Vector3 terrainPos = Vector3.zero;
             Vector3 terrainSize = new Vector3(600, 10, 600);
 

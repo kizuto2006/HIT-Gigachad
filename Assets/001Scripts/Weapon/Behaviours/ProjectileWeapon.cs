@@ -8,7 +8,7 @@ public class ProjectileWeapon : WeaponBehaviour
 {
     [Header("── Projectile Settings ──")]
     [Tooltip("Tầm tìm target tự động.")]
-    public float targetRange = 20f;
+    public float targetRange = 60f;
 
     [Tooltip("Góc spread giữa các projectile (độ) khi bắn nhiều viên.")]
     public float spreadAngle = 15f;
@@ -16,7 +16,7 @@ public class ProjectileWeapon : WeaponBehaviour
     [Tooltip("Vị trí spawn đạn offset so với player.")]
     public Vector3 spawnOffset = new Vector3(0f, 1f, 0.5f);
 
-    public override void Attack()
+public override void Attack()
     {
         if (data.projectilePrefab == null)
         {
@@ -28,52 +28,49 @@ public class ProjectileWeapon : WeaponBehaviour
         float damage = GetFinalDamage();
         float speed = GetFinalProjectileSpeed();
 
-        // Tìm target gần nhất
-        Transform target = FindClosestEnemy(targetRange);
-        Vector3 baseDir;
-
-        if (target != null)
-        {
-            baseDir = (target.position - playerTransform.position).normalized;
-        }
-        else
-        {
-            // Không có target → bắn theo hướng player đang nhìn
-            baseDir = playerTransform.forward;
-        }
-
-        // Spawn position
         Vector3 spawnPos = playerTransform.position
             + playerTransform.right * spawnOffset.x
             + playerTransform.up * spawnOffset.y
             + playerTransform.forward * spawnOffset.z;
 
-        // Spread pattern: phân bố đều quanh baseDir
         float totalSpread = (count - 1) * spreadAngle;
         float startAngle = -totalSpread * 0.5f;
+        bool firedAnyProjectile = false;
 
         for (int i = 0; i < count; i++)
         {
+            float rolledDamage = RollCritDamage(damage);
+            Transform target = FindClosestEnemy(targetRange, rolledDamage);
+            if (target == null)
+                break;
+
+            Vector3 baseDirection =
+                (target.position - playerTransform.position).normalized;
             float angle = startAngle + i * spreadAngle;
-            Quaternion rot = Quaternion.AngleAxis(angle, Vector3.up);
-            Vector3 dir = rot * baseDir;
+            Quaternion spreadRotation = Quaternion.AngleAxis(angle, Vector3.up);
+            Vector3 direction = spreadRotation * baseDirection;
 
-            GameObject projGO = Instantiate(data.projectilePrefab, spawnPos, Quaternion.LookRotation(dir));
+            Projectile projectile = ProjectilePool.Spawn(
+                data.projectilePrefab,
+                spawnPos,
+                Quaternion.LookRotation(direction));
+            if (projectile == null)
+                continue;
 
-            // Scale projectile theo weapon size
-            projGO.transform.localScale *= GetFinalSize();
-
-            // Setup Projectile component
-            Projectile proj = projGO.GetComponent<Projectile>();
-            if (proj == null) proj = projGO.AddComponent<Projectile>();
-
-            proj.Setup(RollCritDamage(damage), speed, GetFinalPierce(), GetFinalKnockback(), enemyLayer, playerTransform);
+            projectile.Setup(
+                rolledDamage,
+                speed,
+                GetFinalPierce(),
+                GetFinalKnockback(),
+                enemyLayer,
+                playerTransform,
+                target,
+                720f,
+                GetFinalSize());
+            firedAnyProjectile = true;
         }
 
-        // Play SFX
-        if (data.attackSound != null)
-        {
+        if (firedAnyProjectile && data.attackSound != null)
             AudioSource.PlayClipAtPoint(data.attackSound, spawnPos);
-        }
     }
 }

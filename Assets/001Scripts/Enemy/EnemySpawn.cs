@@ -3,13 +3,27 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.Pool;
 
+
 public class EnemySpawn : MonoBehaviour
 {
+    [System.Serializable]
+    public sealed class EnemySpawnType
+    {
+        public GameObject prefab;
+        [Min(0f)] public float earlyWeight = 1f;
+        [Min(0f)] public float lateWeight = 1f;
+    }
     [Header("References")]
     [Tooltip("Các enemy bổ sung sẽ được spawn ngẫu nhiên cùng enemyPrefab.")]
     public GameObject[] additionalEnemyPrefabs;
     public GameObject enemyPrefab;
     public Transform playerTransform;
+
+    [Header("Enemy Mix Over Time")]
+    [Tooltip("Weighted enemy selection. Falls back to the legacy prefab fields when empty.")]
+    public EnemySpawnType[] enemyTypes;
+    [Min(0f)] public float enemyMixRampStart = 60f;
+    [Min(0.1f)] public float enemyMixTransitionDuration = 30f;
 
     [Header("Spawn Area")]
     [Min(0f)] public float minSpawnRadius = 15f;
@@ -20,25 +34,20 @@ public class EnemySpawn : MonoBehaviour
     [Range(0f, 1f)] public float frontSpawnChance = 0.75f;
     [Tooltip("Nửa góc của cung spawn phía trước. 65 nghĩa là đàn có thể lệch tối đa 65 độ sang mỗi bên.")]
     [Range(0f, 180f)] public float frontSpawnHalfAngle = 65f;
+    [Tooltip("Only colliders on these layers can be used as spawn ground.")]
+    [SerializeField] private LayerMask groundMask = 1 << 7;
 
-    [Header("Group Size Over Time")]
-    [Tooltip("Số quái ít nhất trong một đàn ở đầu trận.")]
+    [Header("Group Size Every 30 Seconds")]
     [Min(1)] public int startingMinGroupSize = 1;
-    [Tooltip("Số quái nhiều nhất trong một đàn ở đầu trận.")]
     [Min(1)] public int startingMaxGroupSize = 2;
-    [Tooltip("Số quái ít nhất trong một đàn khi đạt thời gian tăng tối đa.")]
-    [Min(1)] public int finalMinGroupSize = 3;
-    [Tooltip("Số quái nhiều nhất trong một đàn khi đạt thời gian tăng tối đa.")]
-    [Min(1)] public int finalMaxGroupSize = 5;
-    [Tooltip("Sau số phút này, một đàn sẽ đạt kích thước 3-5 con.")]
-    [Min(0.1f)] public float minutesToMaxGroupSize = 3f;
+    [Min(0.1f)] public float groupSizeStepSeconds = 30f;
+    [Min(0)] public int groupSizeIncreasePerStep = 1;
+    [Min(1)] public int maximumGroupSize = 10;
 
     [Header("Spawn Timing")]
-    [Tooltip("Khoảng nghỉ giữa hai đàn ở đầu trận.")]
-    [Min(0.05f)] public float startingGroupInterval = 2.5f;
-    [Tooltip("Khoảng nghỉ giữa hai đàn khi độ khó đã tăng tối đa.")]
-    [Min(0.05f)] public float finalGroupInterval = 1.5f;
-    [Tooltip("Giới hạn số quái đang hoạt động để tránh quá tải.")]
+    [Tooltip("Time between enemy groups.")]
+    [Min(0.05f)] public float groupInterval = 2.25f;
+    [Tooltip("Maximum active enemies allowed at once.")]
     [Min(1)] public int maxActiveEnemies = 300;
 
     [Header("Pool")]
@@ -62,6 +71,9 @@ public class EnemySpawn : MonoBehaviour
     [SerializeField] private int currentMinGroupSize;
     [SerializeField] private int currentMaxGroupSize;
 
+
+    private readonly Dictionary<GameObject, ObjectPool<GameObject>> poolByPrefab =
+        new Dictionary<GameObject, ObjectPool<GameObject>>();
     private readonly List<ObjectPool<GameObject>> enemyPools = new List<ObjectPool<GameObject>>();
     private readonly Dictionary<GameObject, ObjectPool<GameObject>> poolByEnemy =
         new Dictionary<GameObject, ObjectPool<GameObject>>();
@@ -117,7 +129,7 @@ public class EnemySpawn : MonoBehaviour
         while (true)
         {
             SpawnGroup();
-            yield return new WaitForSeconds(GetCurrentGroupInterval());
+            yield return new WaitForSeconds(groupInterval);
         }
     }
 
@@ -143,7 +155,7 @@ public class EnemySpawn : MonoBehaviour
             Vector3 spawnPosition = groupCenter + new Vector3(offset.x, 0f, offset.y);
             spawnPosition.y = GetGroundHeight(spawnPosition);
 
-            ObjectPool<GameObject> selectedPool = enemyPools[Random.Range(0, enemyPools.Count)];
+            ObjectPool<GameObject> selectedPool = SelectEnemyPool();
             GameObject enemy = selectedPool.Get();
             EnemySpawnEmergence emergence = enemy.GetComponent<EnemySpawnEmergence>();
             if (emergence == null)
@@ -187,17 +199,25 @@ public class EnemySpawn : MonoBehaviour
     }
 
 
-    private GameObject CreatePooledEnemy(GameObject prefab, ObjectPool<GameObject> ownerPool)
+private GameObject CreatePooledEnemy(GameObject prefab, ObjectPool<GameObject> ownerPool)
     {
         GameObject enemy = Instantiate(prefab, enemyContainer);
         enemy.SetActive(false);
         poolByEnemy[enemy] = ownerPool;
+
+        EnemyHealth health = enemy.GetComponent<EnemyHealth>();
+        if (health != null)
+        {
+            health.SetSpawner(this);
+        }
+
         return enemy;
     }
 
     private void CreatePools()
     {
         enemyPools.Clear();
+        poolByPrefab.Clear();
         poolByEnemy.Clear();
 
         List<GameObject> prefabs = GetUniqueEnemyPrefabs();
@@ -219,6 +239,7 @@ public class EnemySpawn : MonoBehaviour
                 maxSize: 1000
             );
             enemyPools.Add(pool);
+            poolByPrefab[prefab] = pool;
         }
     }
 
@@ -230,17 +251,79 @@ public class EnemySpawn : MonoBehaviour
     private List<GameObject> GetUniqueEnemyPrefabs()
     {
         List<GameObject> prefabs = new List<GameObject>();
-        AddUniquePrefab(prefabs, enemyPrefab);
 
-        if (additionalEnemyPrefabs != null)
+        if (enemyTypes != null)
         {
-            for (int i = 0; i < additionalEnemyPrefabs.Length; i++)
+            for (int i = 0; i < enemyTypes.Length; i++)
             {
-                AddUniquePrefab(prefabs, additionalEnemyPrefabs[i]);
+                EnemySpawnType spawnType = enemyTypes[i];
+                if (spawnType != null)
+                {
+                    AddUniquePrefab(prefabs, spawnType.prefab);
+                }
+            }
+        }
+
+        if (prefabs.Count == 0)
+        {
+            AddUniquePrefab(prefabs, enemyPrefab);
+
+            if (additionalEnemyPrefabs != null)
+            {
+                for (int i = 0; i < additionalEnemyPrefabs.Length; i++)
+                {
+                    AddUniquePrefab(prefabs, additionalEnemyPrefabs[i]);
+                }
             }
         }
 
         return prefabs;
+    }
+
+    private ObjectPool<GameObject> SelectEnemyPool()
+    {
+        if (enemyTypes == null || enemyTypes.Length == 0)
+        {
+            return enemyPools[Random.Range(0, enemyPools.Count)];
+        }
+
+        float mixProgress = Mathf.InverseLerp(
+            enemyMixRampStart,
+            enemyMixRampStart + enemyMixTransitionDuration,
+            elapsedTime);
+        float totalWeight = 0f;
+
+        for (int i = 0; i < enemyTypes.Length; i++)
+        {
+            EnemySpawnType spawnType = enemyTypes[i];
+            if (spawnType != null && spawnType.prefab != null && poolByPrefab.ContainsKey(spawnType.prefab))
+            {
+                totalWeight += Mathf.Lerp(spawnType.earlyWeight, spawnType.lateWeight, mixProgress);
+            }
+        }
+
+        if (totalWeight <= 0f)
+        {
+            return enemyPools[Random.Range(0, enemyPools.Count)];
+        }
+
+        float selection = Random.value * totalWeight;
+        for (int i = 0; i < enemyTypes.Length; i++)
+        {
+            EnemySpawnType spawnType = enemyTypes[i];
+            if (spawnType == null || spawnType.prefab == null || !poolByPrefab.TryGetValue(spawnType.prefab, out ObjectPool<GameObject> pool))
+            {
+                continue;
+            }
+
+            selection -= Mathf.Lerp(spawnType.earlyWeight, spawnType.lateWeight, mixProgress);
+            if (selection <= 0f)
+            {
+                return pool;
+            }
+        }
+
+        return enemyPools[enemyPools.Count - 1];
     }
 
     private static void AddUniquePrefab(List<GameObject> prefabs, GameObject prefab)
@@ -287,36 +370,37 @@ public class EnemySpawn : MonoBehaviour
 
     private void UpdateCurrentGroupSize()
     {
-        float progress = GetDifficultyProgress();
-        currentMinGroupSize = Mathf.RoundToInt(Mathf.Lerp(startingMinGroupSize, finalMinGroupSize, progress));
-        currentMaxGroupSize = Mathf.RoundToInt(Mathf.Lerp(startingMaxGroupSize, finalMaxGroupSize, progress));
+        int step = Mathf.FloorToInt(elapsedTime / Mathf.Max(0.1f, groupSizeStepSeconds));
+        int increase = step * Mathf.Max(0, groupSizeIncreasePerStep);
+        currentMinGroupSize = Mathf.Min(startingMinGroupSize + increase, maximumGroupSize);
+        currentMaxGroupSize = Mathf.Min(startingMaxGroupSize + increase, maximumGroupSize);
         currentMaxGroupSize = Mathf.Max(currentMinGroupSize, currentMaxGroupSize);
     }
 
-    private float GetCurrentGroupInterval()
-    {
-        return Mathf.Lerp(startingGroupInterval, finalGroupInterval, GetDifficultyProgress());
-    }
 
-    private float GetDifficultyProgress()
-    {
-        float duration = Mathf.Max(0.1f, minutesToMaxGroupSize) * 60f;
-        return Mathf.Clamp01(elapsedTime / duration);
-    }
 
-    private float GetGroundHeight(Vector3 position)
+
+
+private float GetGroundHeight(Vector3 position)
     {
         if (Terrain.activeTerrain != null)
         {
             return Terrain.activeTerrain.SampleHeight(position) + Terrain.activeTerrain.transform.position.y;
         }
 
-        if (Physics.Raycast(new Vector3(position.x, 100f, position.z), Vector3.down, out RaycastHit hit, 200f, Physics.AllLayers, QueryTriggerInteraction.Ignore))
+        Vector3 rayOrigin = new Vector3(position.x, 100f, position.z);
+        if (Physics.Raycast(
+            rayOrigin,
+            Vector3.down,
+            out RaycastHit hit,
+            200f,
+            groundMask,
+            QueryTriggerInteraction.Ignore))
         {
             return hit.point.y;
         }
 
-        return 0f;
+        return playerTransform != null ? playerTransform.position.y : 0f;
     }
 
     public void ReturnEnemyToPool(GameObject enemy)
@@ -346,12 +430,31 @@ public class EnemySpawn : MonoBehaviour
         frontSpawnChance = Mathf.Clamp01(frontSpawnChance);
         frontSpawnHalfAngle = Mathf.Clamp(frontSpawnHalfAngle, 0f, 180f);
         startingMaxGroupSize = Mathf.Max(startingMinGroupSize, startingMaxGroupSize);
-        finalMaxGroupSize = Mathf.Max(finalMinGroupSize, finalMaxGroupSize);
+        groupSizeStepSeconds = Mathf.Max(0.1f, groupSizeStepSeconds);
+        groupSizeIncreasePerStep = Mathf.Max(0, groupSizeIncreasePerStep);
+        maximumGroupSize = Mathf.Max(startingMaxGroupSize, maximumGroupSize);
+        groupInterval = Mathf.Max(0.05f, groupInterval);
+        enemyMixRampStart = Mathf.Max(0f, enemyMixRampStart);
+        enemyMixTransitionDuration = Mathf.Max(0.1f, enemyMixTransitionDuration);
         maxActiveEnemies = Mathf.Max(1, maxActiveEnemies);
         initialPoolSize = Mathf.Clamp(initialPoolSize, 0, 1000);
         emergenceDepth = Mathf.Max(0f, emergenceDepth);
         emergenceDuration = Mathf.Max(0.05f, emergenceDuration);
         emergenceStagger = Mathf.Max(0f, emergenceStagger);
+
+        if (enemyTypes != null)
+        {
+            for (int i = 0; i < enemyTypes.Length; i++)
+            {
+                if (enemyTypes[i] == null)
+                {
+                    continue;
+                }
+
+                enemyTypes[i].earlyWeight = Mathf.Max(0f, enemyTypes[i].earlyWeight);
+                enemyTypes[i].lateWeight = Mathf.Max(0f, enemyTypes[i].lateWeight);
+            }
+        }
     }
 
 }
@@ -390,6 +493,7 @@ internal sealed class EnemySpawnEmergence : MonoBehaviour
 
         if (enemyHealth != null)
         {
+            enemyHealth.SetSpawnProtection(true);
             enemyHealth.enabled = false;
         }
 
@@ -403,12 +507,20 @@ internal sealed class EnemySpawnEmergence : MonoBehaviour
             }
         }
 
-        transform.SetPositionAndRotation(startPosition, Quaternion.identity);
+        // Keep the spawn rotation (the boss is already facing the player).
+        transform.position = startPosition;
+
+        // Pooled enemies are prepared while inactive and start in OnEnable.
+        // Dedicated spawners instantiate active objects, so start immediately.
+        if (gameObject.activeInHierarchy)
+        {
+            emergenceRoutine = StartCoroutine(Emerge());
+        }
     }
 
     private void OnEnable()
     {
-        if (prepared)
+        if (prepared && emergenceRoutine == null)
         {
             emergenceRoutine = StartCoroutine(Emerge());
         }
@@ -473,6 +585,7 @@ internal sealed class EnemySpawnEmergence : MonoBehaviour
 
         if (enemyHealth != null)
         {
+            enemyHealth.SetSpawnProtection(false);
             enemyHealth.enabled = true;
         }
 

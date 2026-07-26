@@ -18,13 +18,14 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: 4c913eda62fc7fe4fb78676ea9b622ba, type: 3}
   weaponType: 0
   rarity: 0
-  atk: 10
+  atk: 12
   crit: 0.1
   projectileSpeed: 10
   additionalProjectileDamageMultiplier: 0.5
   projectileCount: 1
   size: 3.5
-  cooldown: 1.25
+  displaySizeAsPercent: 0
+  cooldown: 1
   maxAttackSpeedMultiplier: 3
   pierce: 0
   knockback: 1.25
@@ -45,7 +46,10 @@ MonoBehaviour:
   automaticCooldownReduction: 0.025
   automaticKnockbackBonus: 0.08
   automaticSecondStatInterval: 4
+  randomizeAutomaticSecondStat: 0
+  automaticSecondStatChance: 0.5
   automaticProjectileCountInterval: 15
+  disableAutomaticProjectileCountUpgrades: 0
   automaticMaxProjectileCount: 4
   grantSecondProjectileAtLevel2: 1
   attackType: 0

@@ -16,5 +16,5 @@ MonoBehaviour:
   description: Increases all weapon damage.
   icon: {fileID: 21300000, guid: a4ed22593036f34488e90633dab84f1d, type: 3}
   statType: 0
-  maxLevel: 5
+  maxLevel: 40
   bonusPerLevel: 0.1
