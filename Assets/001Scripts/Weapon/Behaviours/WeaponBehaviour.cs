@@ -99,8 +99,7 @@ public abstract class WeaponBehaviour : MonoBehaviour
 
     public float GetFinalCritChance()
     {
-        float playerCrit = playerStats != null ? playerStats.FinalCriticalChance : 0f;
-        return Mathf.Clamp01(data.crit + playerCrit);
+        return data.GetStatsAtLevel(currentLevel, playerStats).crit;
     }
 
     // ═══════════════════════════════════════════

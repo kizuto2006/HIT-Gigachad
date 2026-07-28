@@ -33,7 +33,7 @@ public sealed class StoneGolemSandBurstAttack : MonoBehaviour
 
     [Header("Damage")]
     [SerializeField, Min(0f)] private float damageMultiplier = 1f;
-    [SerializeField, Min(0f)] private float knockbackForce = 24f;
+    [SerializeField, Min(0f)] private float knockbackForce = 10f;
 
     private bool isAttacking;
     private float nextAttackTime;

@@ -18,6 +18,8 @@ public enum AutomaticWeaponUpgradeStats
     ProjectileSpeed = 1 << 2,
     Cooldown = 1 << 3,
     Knockback = 1 << 4,
+    CriticalChance = 1 << 5,
+    ProjectileCount = 1 << 6,
     All = Damage | Size | ProjectileSpeed | Cooldown | Knockback
 }
 
@@ -95,6 +97,10 @@ public class WeaponData : ScriptableObject
     [Min(0f)] public float automaticSizeBonus = 0.12f;
     [Min(0f)] public float automaticProjectileSpeedBonus = 0.75f;
     [Min(0f)] public float automaticCooldownReduction = 0.035f;
+    [Tooltip("Tăng critical chance mỗi lần chỉ số Crit được chọn. 0.05 tương đương 5%.")]
+    [Range(0f, 1f)] public float automaticCriticalChanceBonus = 0.05f;
+    [Tooltip("Số projectile cộng thêm mỗi lần chỉ số Projectile Count được chọn.")]
+    [Min(1)] public int automaticProjectileCountBonus = 1;
     [Min(0f)] public float automaticKnockbackBonus = 0.12f;
     [Tooltip("Cứ bao nhiêu cấp thì nhận thêm chỉ số thứ hai.")]
     [Min(2)] public int automaticSecondStatInterval = 3;
@@ -133,6 +139,7 @@ public class WeaponData : ScriptableObject
         float levelProjectileSpeedBonus = 0f;
         int levelProjectileCountBonus = levelOffset * projCountPerLevel;
         float levelKnockbackBonus = 0f;
+        float levelCriticalChanceBonus = 0f;
 
         if (useAutomaticLevelUpgrades)
         {
@@ -163,7 +170,9 @@ public class WeaponData : ScriptableObject
                         ref levelCooldownReduction,
                         ref levelSizeBonus,
                         ref levelProjectileSpeedBonus,
-                        ref levelKnockbackBonus);
+                        ref levelKnockbackBonus,
+                        ref levelCriticalChanceBonus,
+                        ref levelProjectileCountBonus);
                 }
 
                 bool projectileCountDue = !disableAutomaticProjectileCountUpgrades
@@ -172,9 +181,8 @@ public class WeaponData : ScriptableObject
                     && projectileCount + levelProjectileCountBonus < automaticMaxProjectileCount;
 
                 if (projectileCountDue)
-                {
                     levelProjectileCountBonus++;
-                }
+
                 bool secondStatDue = randomizeAutomaticSecondStat
                     ? RollAutomaticSecondStat(targetLevel)
                     : automaticSecondStatInterval > 0
@@ -190,12 +198,15 @@ public class WeaponData : ScriptableObject
                         ref levelCooldownReduction,
                         ref levelSizeBonus,
                         ref levelProjectileSpeedBonus,
-                        ref levelKnockbackBonus);
+                        ref levelKnockbackBonus,
+                        ref levelCriticalChanceBonus,
+                        ref levelProjectileCountBonus);
                 }
             }
         }
 
         float damageMultiplier = playerStats != null ? playerStats.FinalDamageMultiplier : 1f;
+        float playerCriticalChance = playerStats != null ? playerStats.FinalCriticalChance : 0f;
         float attackSpeedMultiplier = playerStats != null ? playerStats.FinalAttackSpeedMultiplier : 1f;
         if (maxAttackSpeedMultiplier > 0f)
             attackSpeedMultiplier = Mathf.Min(attackSpeedMultiplier, maxAttackSpeedMultiplier);
@@ -203,15 +214,17 @@ public class WeaponData : ScriptableObject
         float projectileSpeedMultiplier = playerStats != null ? 1f + playerStats.bonusProjSpeedPct : 1f;
         float knockbackMultiplier = playerStats != null ? playerStats.FinalKnockbackMultiplier : 1f;
 
-        int bonusProjectiles = playerStats != null ? playerStats.bonusProjCountFlat : 0;
-        int finalProjectileCount = projectileCount + levelProjectileCountBonus + bonusProjectiles;
+        int upgradedProjectileCount = projectileCount + levelProjectileCountBonus;
         if (useAutomaticLevelUpgrades && automaticMaxProjectileCount > 0)
-            finalProjectileCount = Mathf.Min(finalProjectileCount, automaticMaxProjectileCount);
+            upgradedProjectileCount = Mathf.Min(upgradedProjectileCount, automaticMaxProjectileCount);
+        int bonusProjectiles = playerStats != null ? playerStats.bonusProjCountFlat : 0;
+        int finalProjectileCount = upgradedProjectileCount + bonusProjectiles;
 
         return new WeaponStatsSnapshot
         {
             level = validLevel,
             damage = (atk + levelDamageBonus) * damageMultiplier,
+            crit = Mathf.Clamp01(crit + levelCriticalChanceBonus + playerCriticalChance),
             cooldown = Mathf.Max(0.05f, cooldown - levelCooldownReduction) / attackSpeedMultiplier,
             size = Mathf.Max(0.01f, size + levelSizeBonus) * sizeMultiplier,
             projectileSpeed = Mathf.Max(0f, projectileSpeed + levelProjectileSpeedBonus) * projectileSpeedMultiplier,
@@ -226,7 +239,9 @@ public class WeaponData : ScriptableObject
         ref float cooldownReduction,
         ref float sizeBonus,
         ref float projectileSpeedBonus,
-        ref float knockbackBonus)
+        ref float knockbackBonus,
+        ref float criticalChanceBonus,
+        ref int projectileCountBonus)
     {
         switch (statIndex)
         {
@@ -244,6 +259,16 @@ public class WeaponData : ScriptableObject
                 break;
             case 4:
                 knockbackBonus += automaticKnockbackBonus;
+                break;
+            case 5:
+                criticalChanceBonus += automaticCriticalChanceBonus;
+                break;
+            case 6:
+                if (automaticMaxProjectileCount <= 0 ||
+                    projectileCount + projectileCountBonus < automaticMaxProjectileCount)
+                {
+                    projectileCountBonus += automaticProjectileCountBonus;
+                }
                 break;
         }
     }
@@ -285,6 +310,8 @@ public class WeaponData : ScriptableObject
         cooldown = Mathf.Max(0.01f, cooldown);
         maxLevel = Mathf.Max(1, maxLevel);
         automaticSecondStatInterval = Mathf.Max(2, automaticSecondStatInterval);
+        automaticCriticalChanceBonus = Mathf.Clamp01(automaticCriticalChanceBonus);
+        automaticProjectileCountBonus = Mathf.Max(1, automaticProjectileCountBonus);
         automaticSecondStatChance = Mathf.Clamp01(automaticSecondStatChance);
         automaticProjectileCountInterval = Mathf.Max(2, automaticProjectileCountInterval);
         automaticMaxProjectileCount = Mathf.Max(projectileCount, automaticMaxProjectileCount);
@@ -293,11 +320,12 @@ public class WeaponData : ScriptableObject
 
     private int GetAutomaticStatCount()
     {
+        AutomaticWeaponUpgradeStats effectiveStats = GetEffectiveAutomaticUpgradeStats();
         int count = 0;
-        for (int statIndex = 0; statIndex < 5; statIndex++)
+        for (int statIndex = 0; statIndex < 7; statIndex++)
         {
             AutomaticWeaponUpgradeStats stat = (AutomaticWeaponUpgradeStats)(1 << statIndex);
-            if ((automaticUpgradeStats & stat) != 0)
+            if ((effectiveStats & stat) != 0)
                 count++;
         }
 
@@ -306,11 +334,19 @@ public class WeaponData : ScriptableObject
 
     private int GetAutomaticStatAt(int sequenceIndex)
     {
+        AutomaticWeaponUpgradeStats effectiveStats = GetEffectiveAutomaticUpgradeStats();
+        bool usesExtendedStats =
+            (effectiveStats & (AutomaticWeaponUpgradeStats.CriticalChance |
+                               AutomaticWeaponUpgradeStats.ProjectileCount)) != 0;
         int currentIndex = 0;
-        for (int statIndex = 0; statIndex < 5; statIndex++)
+
+        for (int orderIndex = 0; orderIndex < 7; orderIndex++)
         {
+            int statIndex = usesExtendedStats
+                ? GetExtendedAutomaticStatIndex(orderIndex)
+                : orderIndex;
             AutomaticWeaponUpgradeStats stat = (AutomaticWeaponUpgradeStats)(1 << statIndex);
-            if ((automaticUpgradeStats & stat) == 0)
+            if ((effectiveStats & stat) == 0)
                 continue;
 
             if (currentIndex == sequenceIndex)
@@ -320,5 +356,29 @@ public class WeaponData : ScriptableObject
         }
 
         return 0;
+    }
+
+    private static int GetExtendedAutomaticStatIndex(int orderIndex)
+    {
+        switch (orderIndex)
+        {
+            case 0: return 0; // Damage
+            case 1: return 5; // Critical chance
+            case 2: return 6; // Projectile count
+            case 3: return 3; // Cooldown
+            case 4: return 1; // Size
+            case 5: return 2; // Projectile speed
+            default: return 4; // Knockback
+        }
+    }
+
+    private AutomaticWeaponUpgradeStats GetEffectiveAutomaticUpgradeStats()
+    {
+        // Older assets serialized "All" as -1. Keep that legacy value limited
+        // to the original five stats so adding Bow-only stats does not change
+        // the upgrade paths of existing weapons.
+        return (int)automaticUpgradeStats == -1
+            ? AutomaticWeaponUpgradeStats.All
+            : automaticUpgradeStats;
     }
 }

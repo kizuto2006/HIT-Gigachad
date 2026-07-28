@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -10,15 +9,25 @@ using UnityEngine;
 public sealed class StoneGolemSandBurstZone : MonoBehaviour
 {
     private static readonly Collider[] HitBuffer = new Collider[16];
+    private static readonly int ColorId = Shader.PropertyToID("_Color");
 
-    private readonly List<Material> runtimeMaterials = new List<Material>(4);
+    private static Mesh sharedDiscMesh;
+    private static Material sharedParticleMaterial;
+    private static Material sharedWarningFillMaterial;
+    private static Material sharedWarningBorderMaterial;
+
     private float radius;
     private float telegraphDuration;
     private float damage;
     private float knockbackForce;
     private Transform source;
     private GameObject warningVisual;
-    private Material warningFillMaterial;
+    private MeshRenderer warningRenderer;
+    private MaterialPropertyBlock warningPropertyBlock;
+    private ParticleSystem sandColumnParticles;
+    private ParticleSystem sandShockwaveParticles;
+    private ParticleSystem dustCloudParticles;
+    private Light explosionLight;
 
     public void Initialize(
         float attackRadius,
@@ -34,6 +43,7 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
         source = attackSource;
 
         CreateWarningVisual();
+        PrepareExplosionVfx();
         StartCoroutine(RunZone());
     }
 
@@ -46,13 +56,18 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
             float progress = Mathf.Clamp01(elapsed / telegraphDuration);
             float pulse = 1f + Mathf.Sin(progress * Mathf.PI * 8f) * 0.035f;
             float closingScale = Mathf.Lerp(1.08f, 1f, progress);
-            warningVisual.transform.localScale = Vector3.one * pulse * closingScale;
+            warningVisual.transform.localScale =
+                Vector3.one * (radius * pulse * closingScale);
 
-            if (warningFillMaterial != null)
+            if (warningRenderer != null)
             {
-                Color color = warningFillMaterial.color;
-                color.a = Mathf.Lerp(0.18f, 0.42f, progress);
-                warningFillMaterial.color = color;
+                Color color = new Color(
+                    0.95f,
+                    0.035f,
+                    0.02f,
+                    Mathf.Lerp(0.18f, 0.42f, progress));
+                warningPropertyBlock.SetColor(ColorId, color);
+                warningRenderer.SetPropertyBlock(warningPropertyBlock);
             }
 
             yield return null;
@@ -69,14 +84,19 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
     {
         warningVisual = new GameObject("Red Danger Telegraph");
         warningVisual.transform.SetParent(transform, false);
+        warningVisual.transform.localScale = Vector3.one * radius;
 
         MeshFilter filter = warningVisual.AddComponent<MeshFilter>();
-        filter.sharedMesh = CreateDiscMesh(64);
+        filter.sharedMesh = GetOrCreateDiscMesh();
 
-        MeshRenderer meshRenderer = warningVisual.AddComponent<MeshRenderer>();
-        warningFillMaterial = CreateTransparentMaterial(new Color(0.95f, 0.035f, 0.02f, 0.2f));
-        meshRenderer.sharedMaterial = warningFillMaterial;
-        meshRenderer.sortingOrder = 20;
+        warningRenderer = warningVisual.AddComponent<MeshRenderer>();
+        warningRenderer.sharedMaterial = GetOrCreateWarningMaterial(false);
+        warningRenderer.sortingOrder = 20;
+        warningPropertyBlock = new MaterialPropertyBlock();
+        warningPropertyBlock.SetColor(
+            ColorId,
+            new Color(0.95f, 0.035f, 0.02f, 0.2f));
+        warningRenderer.SetPropertyBlock(warningPropertyBlock);
 
         GameObject borderObject = new GameObject("Danger Border");
         borderObject.transform.SetParent(warningVisual.transform, false);
@@ -84,16 +104,20 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
         border.useWorldSpace = false;
         border.loop = true;
         border.positionCount = 64;
-        border.widthMultiplier = 0.11f;
+        border.widthMultiplier = 0.11f / radius;
         border.numCornerVertices = 2;
         border.numCapVertices = 2;
-        border.sharedMaterial = CreateTransparentMaterial(new Color(1f, 0.08f, 0.015f, 0.9f));
+        border.sharedMaterial = GetOrCreateWarningMaterial(true);
+        border.startColor = Color.white;
+        border.endColor = Color.white;
         border.sortingOrder = 21;
 
         for (int i = 0; i < border.positionCount; i++)
         {
             float angle = i / (float)border.positionCount * Mathf.PI * 2f;
-            border.SetPosition(i, new Vector3(Mathf.Cos(angle) * radius, 0.018f, Mathf.Sin(angle) * radius));
+            border.SetPosition(
+                i,
+                new Vector3(Mathf.Cos(angle), 0.018f / radius, Mathf.Sin(angle)));
         }
     }
 
@@ -144,13 +168,19 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
 
     private void PlayGoldenSandExplosion()
     {
-        CreateSandColumn();
-        CreateSandShockwave();
-        CreateDustCloud();
-        CreateExplosionLight();
+        sandColumnParticles?.Play();
+        sandShockwaveParticles?.Play();
+        dustCloudParticles?.Play();
+
+        if (explosionLight != null)
+        {
+            explosionLight.intensity = 4.5f;
+            explosionLight.enabled = true;
+            StartCoroutine(FadeLight(explosionLight, 0.28f));
+        }
     }
 
-    private void CreateSandColumn()
+    private ParticleSystem CreateSandColumn()
     {
         ParticleSystem particles = CreateParticleSystem("Golden Sand Column");
         particles.transform.localPosition = Vector3.up * 0.05f;
@@ -159,6 +189,7 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
         ParticleSystem.MainModule main = particles.main;
         main.duration = 0.7f;
         main.loop = false;
+        main.playOnAwake = false;
         main.startLifetime = new ParticleSystem.MinMaxCurve(0.45f, 1.05f);
         main.startSpeed = new ParticleSystem.MinMaxCurve(5.5f, 10f);
         main.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.34f);
@@ -182,11 +213,10 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
         noise.enabled = true;
         noise.strength = 0.7f;
         noise.frequency = 0.65f;
-
-        particles.Play();
+        return particles;
     }
 
-    private void CreateSandShockwave()
+    private ParticleSystem CreateSandShockwave()
     {
         ParticleSystem particles = CreateParticleSystem("Golden Sand Shockwave");
         particles.transform.localPosition = Vector3.up * 0.08f;
@@ -195,6 +225,7 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
         ParticleSystem.MainModule main = particles.main;
         main.duration = 0.45f;
         main.loop = false;
+        main.playOnAwake = false;
         main.startLifetime = new ParticleSystem.MinMaxCurve(0.28f, 0.5f);
         main.startSpeed = new ParticleSystem.MinMaxCurve(radius * 4.5f, radius * 7f);
         main.startSize = new ParticleSystem.MinMaxCurve(0.14f, 0.4f);
@@ -215,11 +246,10 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
         ParticleSystem.LimitVelocityOverLifetimeModule limitVelocity = particles.limitVelocityOverLifetime;
         limitVelocity.enabled = true;
         limitVelocity.dampen = 0.2f;
-
-        particles.Play();
+        return particles;
     }
 
-    private void CreateDustCloud()
+    private ParticleSystem CreateDustCloud()
     {
         ParticleSystem particles = CreateParticleSystem("Warm Sand Dust");
         particles.transform.localPosition = Vector3.up * 0.2f;
@@ -227,6 +257,7 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
         ParticleSystem.MainModule main = particles.main;
         main.duration = 0.8f;
         main.loop = false;
+        main.playOnAwake = false;
         main.startLifetime = new ParticleSystem.MinMaxCurve(0.75f, 1.55f);
         main.startSpeed = new ParticleSystem.MinMaxCurve(0.8f, 2.8f);
         main.startSize = new ParticleSystem.MinMaxCurve(0.35f, 0.95f);
@@ -261,11 +292,10 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
                 new GradientAlphaKey(0f, 1f)
             });
         colorOverLifetime.color = fadeGradient;
-
-        particles.Play();
+        return particles;
     }
 
-    private void CreateExplosionLight()
+    private Light CreateExplosionLight()
     {
         GameObject lightObject = new GameObject("Sand Flash");
         lightObject.transform.SetParent(transform, false);
@@ -275,7 +305,9 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
         flash.color = new Color(1f, 0.63f, 0.12f);
         flash.range = radius * 3.5f;
         flash.intensity = 4.5f;
-        StartCoroutine(FadeLight(flash, 0.28f));
+        flash.shadows = LightShadows.None;
+        flash.enabled = false;
+        return flash;
     }
 
     private static IEnumerator FadeLight(Light lightSource, float duration)
@@ -291,7 +323,8 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
 
         if (lightSource != null)
         {
-            Destroy(lightSource.gameObject);
+            lightSource.intensity = 0f;
+            lightSource.enabled = false;
         }
     }
 
@@ -300,8 +333,6 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
         GameObject particleObject = new GameObject(objectName);
         particleObject.transform.SetParent(transform, false);
         ParticleSystem particles = particleObject.AddComponent<ParticleSystem>();
-        // AddComponent starts the default system immediately because its object
-        // is active. Clear that auto-play state before callers configure duration.
         particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         ParticleSystemRenderer renderer = particles.GetComponent<ParticleSystemRenderer>();
         renderer.renderMode = ParticleSystemRenderMode.Billboard;
@@ -310,88 +341,105 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
         return particles;
     }
 
-    private Material CreateParticleMaterial()
+    private static Material CreateParticleMaterial()
     {
+        if (sharedParticleMaterial != null)
+            return sharedParticleMaterial;
+
         Shader shader = Resources.Load<Shader>("Shaders/GoldenSandParticle");
         if (shader == null)
-        {
             shader = Shader.Find("Custom/Gigachad/Golden Sand Particle");
-        }
         if (shader == null)
-        {
             shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-        }
+        if (shader == null)
+            return null;
 
-        Material material = new Material(shader)
+        sharedParticleMaterial = new Material(shader)
         {
-            name = "Runtime Golden Sand Particle Material"
+            name = "Shared Runtime Golden Sand Particle Material",
+            hideFlags = HideFlags.HideAndDontSave
         };
-
-        material.SetFloat("_Softness", 0.28f);
-
-        runtimeMaterials.Add(material);
-        return material;
+        sharedParticleMaterial.SetFloat("_Softness", 0.28f);
+        return sharedParticleMaterial;
     }
 
-    private Material CreateTransparentMaterial(Color color)
+    private static Material GetOrCreateWarningMaterial(bool border)
     {
+        Material material = border
+            ? sharedWarningBorderMaterial
+            : sharedWarningFillMaterial;
+        if (material != null)
+            return material;
+
         Shader shader = Shader.Find("Sprites/Default");
         if (shader == null)
-        {
             shader = Shader.Find("Universal Render Pipeline/Unlit");
-        }
+        if (shader == null)
+            return null;
 
-        Material material = new Material(shader)
+        Color color = border
+            ? new Color(1f, 0.08f, 0.015f, 0.9f)
+            : Color.white;
+        material = new Material(shader)
         {
+            name = border
+                ? "Shared Sand Burst Border Material"
+                : "Shared Sand Burst Fill Material",
             color = color,
-            renderQueue = 3000
+            renderQueue = 3000,
+            hideFlags = HideFlags.HideAndDontSave
         };
-        runtimeMaterials.Add(material);
+
+        if (border)
+            sharedWarningBorderMaterial = material;
+        else
+            sharedWarningFillMaterial = material;
         return material;
     }
 
-    private Mesh CreateDiscMesh(int segments)
+    private static Mesh GetOrCreateDiscMesh()
     {
-        Vector3[] vertices = new Vector3[segments + 1];
-        int[] triangles = new int[segments * 3];
+        if (sharedDiscMesh != null)
+            return sharedDiscMesh;
+
+        const int Segments = 64;
+        Vector3[] vertices = new Vector3[Segments + 1];
+        int[] triangles = new int[Segments * 3];
         vertices[0] = Vector3.up * 0.01f;
 
-        for (int i = 0; i < segments; i++)
+        for (int i = 0; i < Segments; i++)
         {
-            float angle = i / (float)segments * Mathf.PI * 2f;
-            vertices[i + 1] = new Vector3(Mathf.Cos(angle) * radius, 0.01f, Mathf.Sin(angle) * radius);
+            float angle = i / (float)Segments * Mathf.PI * 2f;
+            vertices[i + 1] = new Vector3(
+                Mathf.Cos(angle),
+                0.01f,
+                Mathf.Sin(angle));
 
             int triangle = i * 3;
             triangles[triangle] = 0;
-            triangles[triangle + 1] = (i + 1) % segments + 1;
+            triangles[triangle + 1] = (i + 1) % Segments + 1;
             triangles[triangle + 2] = i + 1;
         }
 
-        Mesh mesh = new Mesh { name = "Runtime Sand Burst Telegraph" };
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
-        mesh.RecalculateBounds();
-        mesh.RecalculateNormals();
-        return mesh;
+        sharedDiscMesh = new Mesh
+        {
+            name = "Shared Runtime Sand Burst Telegraph",
+            hideFlags = HideFlags.HideAndDontSave,
+            vertices = vertices,
+            triangles = triangles
+        };
+        sharedDiscMesh.RecalculateBounds();
+        sharedDiscMesh.RecalculateNormals();
+        return sharedDiscMesh;
     }
 
-    private void OnDestroy()
-    {
-        if (warningVisual != null)
-        {
-            MeshFilter filter = warningVisual.GetComponent<MeshFilter>();
-            if (filter != null && filter.sharedMesh != null)
-            {
-                Destroy(filter.sharedMesh);
-            }
-        }
 
-        for (int i = 0; i < runtimeMaterials.Count; i++)
-        {
-            if (runtimeMaterials[i] != null)
-            {
-                Destroy(runtimeMaterials[i]);
-            }
-        }
+
+    private void PrepareExplosionVfx()
+    {
+        sandColumnParticles = CreateSandColumn();
+        sandShockwaveParticles = CreateSandShockwave();
+        dustCloudParticles = CreateDustCloud();
+        explosionLight = CreateExplosionLight();
     }
 }

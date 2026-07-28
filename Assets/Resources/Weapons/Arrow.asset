@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70b7107a794942b9a4628d3999958537, type: 3}
+  m_Name: Bow
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponData
+  id: arrow
+  weaponName: Bow
+  description: Locks onto one enemy, then pierces straight through every enemy in
+    its path.
+  icon: {fileID: 21300000, guid: c4ed3144c16109040848a12a1337c057, type: 3}
+  weaponType: 1
+  rarity: 0
+  atk: 9
+  crit: 0.1
+  projectileSpeed: 42
+  additionalProjectileDamageMultiplier: 0
+  projectileCount: 1
+  size: 1
+  displaySizeAsPercent: 1
+  cooldown: 0.9
+  maxAttackSpeedMultiplier: 0
+  pierce: 2147483647
+  knockback: 0.35
+  duration: 3
+  hitInterval: 0.5
+  orbitRadius: 2
+  orbitSpeed: 180
+  maxLevel: 5
+  damagePerLevel: 4
+  cooldownReductionPerLevel: 0.04
+  sizePerLevel: 0.08
+  projCountPerLevel: 0
+  useAutomaticLevelUpgrades: 1
+  automaticUpgradeStats: 105
+  automaticDamageBonus: 4
+  automaticSizeBonus: 0.12
+  automaticProjectileSpeedBonus: 0.75
+  automaticCooldownReduction: 0.08
+  automaticCriticalChanceBonus: 0.05
+  automaticProjectileCountBonus: 1
+  automaticKnockbackBonus: 0.12
+  automaticSecondStatInterval: 999
+  randomizeAutomaticSecondStat: 1
+  automaticSecondStatChance: 0
+  automaticProjectileCountInterval: 10
+  disableAutomaticProjectileCountUpgrades: 1
+  automaticMaxProjectileCount: 100
+  grantSecondProjectileAtLevel2: 0
+  attackType: 1
+  attackEffectPrefab: {fileID: 5935097833217495665, guid: 94aa1dd1e5271d244b4b626b0b7d6a33, type: 3}
+  projectilePrefab: {fileID: 7753384399387097922, guid: 26246e41b02688846bc84292d17e1eae, type: 3}
+  attackAnimation: {fileID: 0}
+  attackSound: {fileID: 0}

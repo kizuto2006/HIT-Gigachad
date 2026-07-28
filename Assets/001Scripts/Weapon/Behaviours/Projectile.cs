@@ -17,6 +17,9 @@ public class Projectile : MonoBehaviour
     public float speed;
     public int maxPierce;
     public float knockback;
+
+    [Tooltip("Quãng đường tối đa. 0 nghĩa là chỉ dùng lifetime.")]
+    [Min(0f)] public float maxTravelDistance;
     public float lifetime = 5f;
 
     [Tooltip("Các layer làm projectile phát nổ, gồm mặt đất và decor.")]
@@ -24,6 +27,8 @@ public class Projectile : MonoBehaviour
     public LayerMask enemyLayer;
 
     private int pierceCount;
+
+    private float traveledDistance;
     private float timer;
     private Transform sourcePlayer;
 
@@ -36,7 +41,10 @@ public class Projectile : MonoBehaviour
     private EnemyHealth reservedTarget;
     private float reservedDamage;
     private ParticleSystem[] particleSystems;
+
+    private Vector3 homingTargetOffset;
     private Transform homingTarget;
+    private ProjectileTrailVFX trailVfx;
 
     [Header("── Homing ──")]
     [Tooltip("Tốc độ xoay theo mục tiêu, tính bằng độ/giây.")]
@@ -67,7 +75,8 @@ public void Setup(
         Transform player,
         Transform target = null,
         float turnSpeed = 720f,
-        float sizeMultiplier = 1f)
+        float sizeMultiplier = 1f,
+        Vector3 targetOffset = default)
     {
         ReleaseReservedDamage();
 
@@ -78,6 +87,7 @@ public void Setup(
         enemyLayer = layer;
         sourcePlayer = player;
         homingTarget = target;
+        homingTargetOffset = targetOffset;
         tracksHomingTarget = target != null;
         homingTargetHealth = target != null
             ? target.GetComponentInParent<EnemyHealth>()
@@ -87,14 +97,21 @@ public void Setup(
         transform.localScale = baseLocalScale * Mathf.Max(0.01f, sizeMultiplier);
         hitEnemyIds.Clear();
         pierceCount = 0;
+
+        traveledDistance = 0f;
         timer = 0f;
 
         ReserveTargetDamage();
         RestartParticles();
+        if (trailVfx != null)
+            trailVfx.PrepareForSpawn();
     }
 
 private void Update()
     {
+        if (isReleased)
+            return;
+
         if (HasLostHomingTarget())
             StopTrackingTarget();
 
@@ -102,9 +119,15 @@ private void Update()
         {
             Vector3 targetPosition = homingTarget.position;
             Collider targetCollider = homingTarget.GetComponent<Collider>();
+            if (targetCollider == null && homingTargetHealth != null)
+            {
+                targetCollider =
+                    homingTargetHealth.GetComponentInChildren<Collider>();
+            }
             if (targetCollider != null)
                 targetPosition = targetCollider.bounds.center;
 
+            targetPosition += homingTargetOffset;
             Vector3 direction = targetPosition - transform.position;
             if (direction.sqrMagnitude > 0.0001f)
             {
@@ -117,10 +140,22 @@ private void Update()
         }
 
         float moveDistance = speed * Time.deltaTime;
+        if (maxTravelDistance > 0f)
+        {
+            float remainingDistance = maxTravelDistance - traveledDistance;
+            if (remainingDistance <= 0f)
+            {
+                Release();
+                return;
+            }
+
+            moveDistance = Mathf.Min(moveDistance, remainingDistance);
+        }
+
         if (moveDistance > 0f)
         {
             RaycastHit[] hits = Physics.SphereCastAll(
-                transform.position,
+                GetCollisionOrigin(),
                 GetCollisionRadius(),
                 transform.forward,
                 moveDistance,
@@ -138,6 +173,14 @@ private void Update()
             }
 
             transform.position += transform.forward * moveDistance;
+            traveledDistance += moveDistance;
+        }
+
+        if (maxTravelDistance > 0f &&
+            traveledDistance >= maxTravelDistance)
+        {
+            Release();
+            return;
         }
 
         timer += Time.deltaTime;
@@ -147,7 +190,7 @@ private void Update()
 
 private void OnTriggerEnter(Collider other)
     {
-        if (other == null)
+        if (isReleased || other == null)
             return;
 
         TryImpact(other, other.ClosestPoint(transform.position));
@@ -167,6 +210,16 @@ private float GetCollisionRadius()
             Mathf.Abs(scale.y),
             Mathf.Abs(scale.z));
         return Mathf.Max(0.01f, triggerCollider.radius * largestScale);
+}
+
+private Vector3 GetCollisionOrigin()
+    {
+        if (triggerCollider == null)
+            triggerCollider = GetComponent<SphereCollider>();
+
+        return triggerCollider != null
+            ? transform.TransformPoint(triggerCollider.center)
+            : transform.position;
     }
 
 
@@ -182,6 +235,7 @@ private bool TryHit(Collider other, Vector3 hitPosition)
         if (!hitEnemyIds.Add(enemyId))
             return false;
 
+        bool hitLockedTarget = enemyHealth == homingTargetHealth;
         if (enemyHealth == reservedTarget)
             ReleaseReservedDamage();
 
@@ -197,6 +251,9 @@ private bool TryHit(Collider other, Vector3 hitPosition)
                 body.AddForce(direction * knockback, ForceMode.Impulse);
             }
         }
+
+        if (hitLockedTarget)
+            StopTrackingTarget();
 
         TriggerExplosion(hitPosition, enemyId);
 
@@ -302,6 +359,21 @@ private void Release()
         isReleased = true;
         ReleaseReservedDamage();
 
+        if (triggerCollider != null)
+            triggerCollider.enabled = false;
+
+        if (trailVfx != null &&
+            trailVfx.TryBeginRelease(CompleteRelease))
+        {
+            return;
+        }
+
+        CompleteRelease();
+    }
+
+
+private void CompleteRelease()
+    {
         if (releaseToPool != null)
             releaseToPool(this);
         else
@@ -327,8 +399,11 @@ internal void ReturnToPool()
     {
         ReleaseReservedDamage();
         StopParticles();
+        if (trailVfx != null)
+            trailVfx.ResetForPool();
         homingTarget = null;
         homingTargetHealth = null;
+        homingTargetOffset = Vector3.zero;
         tracksHomingTarget = false;
         sourcePlayer = null;
         gameObject.SetActive(false);
@@ -339,6 +414,10 @@ internal void PrepareForSpawn(Vector3 position, Quaternion rotation)
     {
         isReleased = false;
         transform.SetPositionAndRotation(position, rotation);
+        if (triggerCollider == null)
+            triggerCollider = GetComponent<SphereCollider>();
+        if (triggerCollider != null)
+            triggerCollider.enabled = true;
         gameObject.SetActive(true);
     }
 
@@ -354,6 +433,7 @@ private void Awake()
         baseLocalScale = transform.localScale;
         triggerCollider = GetComponent<SphereCollider>();
         particleSystems = GetComponentsInChildren<ParticleSystem>(true);
+        trailVfx = GetComponent<ProjectileTrailVFX>();
     }
 
 private void OnDestroy()
@@ -368,6 +448,7 @@ private void StopTrackingTarget()
         ReleaseReservedDamage();
         homingTarget = null;
         homingTargetHealth = null;
+        homingTargetOffset = Vector3.zero;
         tracksHomingTarget = false;
     }
 

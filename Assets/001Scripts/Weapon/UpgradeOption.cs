@@ -11,6 +11,7 @@ public enum UpgradeOptionType
 public enum WeaponStatKind
 {
     Damage,
+    CriticalChance,
     Cooldown,
     Size,
     ProjectileSpeed,
@@ -24,6 +25,7 @@ public struct WeaponStatsSnapshot
 {
     public int level;
     public float damage;
+    public float crit;
     public float cooldown;
     public float size;
     public float projectileSpeed;
@@ -140,7 +142,7 @@ public class UpgradeOption
 
     public List<WeaponStatChange> GetStatChanges(bool includeUnchanged = false)
     {
-        List<WeaponStatChange> changes = new List<WeaponStatChange>(6);
+        List<WeaponStatChange> changes = new List<WeaponStatChange>(8);
         if (IsTome)
         {
             if (tome != null)
@@ -149,6 +151,7 @@ public class UpgradeOption
         }
 
         AddChange(changes, WeaponStatKind.Damage, "DAMAGE", currentStats.damage, nextStats.damage, false, false, false, includeUnchanged);
+        AddChange(changes, WeaponStatKind.CriticalChance, "CRIT", currentStats.crit, nextStats.crit, false, true, false, includeUnchanged);
         AddChange(changes, WeaponStatKind.Cooldown, "COOLDOWN", currentStats.cooldown, nextStats.cooldown, false, false, true, includeUnchanged);
         if (weapon != null && weapon.displaySizeAsPercent && weapon.size > 0.0001f)
         {

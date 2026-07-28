@@ -27,7 +27,7 @@ public sealed class StoneGolemSeismicRingAttack : MonoBehaviour
 
     [Header("Damage")]
     [SerializeField, Min(0f)] private float damageMultiplier = 0.7f;
-    [SerializeField, Min(0f)] private float knockbackForce = 18f;
+    [SerializeField, Min(0f)] private float knockbackForce = 8f;
 
     private EnemyAI enemyAI;
     private EnemyHealth enemyHealth;

@@ -168,7 +168,7 @@ MonoBehaviour:
   predictionLookAhead: 0.75
   maxPredictionDistance: 7
   damageMultiplier: 1
-  knockbackForce: 24
+  knockbackForce: 10
 --- !u!114 &1442233652178064840
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -206,7 +206,7 @@ MonoBehaviour:
   activationRange: 36
   safeJumpHeight: 0.9
   damageMultiplier: 0.7
-  knockbackForce: 18
+  knockbackForce: 8
 --- !u!1001 &7188904614298597588
 PrefabInstance:
   m_ObjectHideFlags: 0
