@@ -62,6 +62,13 @@ public class EnemySpawn : MonoBehaviour
     [Tooltip("Độ trễ giữa từng con trong cùng một đàn.")]
     [Min(0f)] public float emergenceStagger = 0.08f;
 
+    [Header("Mini Bosses")]
+    [Tooltip("Tỷ lệ mỗi enemy trong đàn trở thành mini boss.")]
+    [Range(0f, 1f)] public float miniBossChance = 0.12f;
+    [Min(1f)] public float miniBossScaleMultiplier = 1.5f;
+    [Min(1f)] public float miniBossHpMultiplier = 3f;
+    [Min(1f)] public float miniBossDamageMultiplier = 1.5f;
+
     [Header("Organization")]
     public Transform enemyContainer;
 
@@ -157,6 +164,16 @@ public class EnemySpawn : MonoBehaviour
 
             ObjectPool<GameObject> selectedPool = SelectEnemyPool();
             GameObject enemy = selectedPool.Get();
+            EnemyMiniBoss miniBoss = enemy.GetComponent<EnemyMiniBoss>();
+            if (miniBoss != null)
+            {
+                miniBoss.Configure(
+                    Random.value < miniBossChance,
+                    miniBossScaleMultiplier,
+                    miniBossHpMultiplier,
+                    miniBossDamageMultiplier);
+            }
+
             EnemySpawnEmergence emergence = enemy.GetComponent<EnemySpawnEmergence>();
             if (emergence == null)
             {
@@ -209,6 +226,11 @@ private GameObject CreatePooledEnemy(GameObject prefab, ObjectPool<GameObject> o
         if (health != null)
         {
             health.SetSpawner(this);
+
+            if (enemy.GetComponent<EnemyMiniBoss>() == null)
+            {
+                enemy.AddComponent<EnemyMiniBoss>();
+            }
         }
 
         return enemy;
@@ -441,6 +463,10 @@ private float GetGroundHeight(Vector3 position)
         emergenceDepth = Mathf.Max(0f, emergenceDepth);
         emergenceDuration = Mathf.Max(0.05f, emergenceDuration);
         emergenceStagger = Mathf.Max(0f, emergenceStagger);
+        miniBossChance = Mathf.Clamp01(miniBossChance);
+        miniBossScaleMultiplier = Mathf.Max(1f, miniBossScaleMultiplier);
+        miniBossHpMultiplier = Mathf.Max(1f, miniBossHpMultiplier);
+        miniBossDamageMultiplier = Mathf.Max(1f, miniBossDamageMultiplier);
 
         if (enemyTypes != null)
         {

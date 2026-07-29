@@ -40,8 +40,16 @@ public class EnemyHealth : MonoBehaviour
     private Vector3 baseBoxSize;
     private float baseColliderRadius;
     private float baseCapsuleHeight;
+    private float runtimeScaleMultiplier = 1f;
+    private float runtimeHpMultiplier = 1f;
+    private float runtimeAttackMultiplier = 1f;
 
     private bool isSpawnProtected;
+
+    public float AttackDamage => data != null
+        ? Mathf.Max(0f, data.atk * runtimeAttackMultiplier)
+        : 0f;
+    public bool IsMiniBoss => runtimeHpMultiplier > 1f;
 
     public bool CanBeTargeted =>
         isActiveAndEnabled &&
@@ -66,6 +74,24 @@ public class EnemyHealth : MonoBehaviour
     public void SetSpawner(EnemySpawn spawner)
     {
         ownerSpawner = spawner;
+    }
+
+    public void ConfigureRuntimeVariant(
+        float scaleMultiplier,
+        float hpMultiplier,
+        float attackMultiplier)
+    {
+        runtimeScaleMultiplier = Mathf.Max(0.01f, scaleMultiplier);
+        runtimeHpMultiplier = Mathf.Max(0.01f, hpMultiplier);
+        runtimeAttackMultiplier = Mathf.Max(0f, attackMultiplier);
+
+        // Apply immediately even while this pooled enemy is inactive. Emergence
+        // disables EnemyHealth until the enemy reaches the ground, so waiting for
+        // OnEnable would make the visual grow after the crown was positioned.
+        if (data != null && scaleTarget != null)
+        {
+            ApplySizeMultiplier();
+        }
     }
 
 internal void SetSpawnProtection(bool isProtected)
@@ -204,9 +230,10 @@ internal void SetSpawnProtection(bool isProtected)
                 break;
         }
 
-        scaleTarget.localScale = baseScale * scaleMul;
-        ApplyRootColliderScale(scaleMul);
-        currentHp = data.hp * hpMul;
+        float finalScaleMultiplier = scaleMul * runtimeScaleMultiplier;
+        scaleTarget.localScale = baseScale * finalScaleMultiplier;
+        ApplyRootColliderScale(finalScaleMultiplier);
+        currentHp = data.hp * hpMul * runtimeHpMultiplier;
     }
 
     private float GetHpMultiplier()
@@ -214,12 +241,12 @@ internal void SetSpawnProtection(bool isProtected)
         switch (data.size)
         {
             case EnemySize.Small:
-                return 0.6f;
+                return 0.6f * runtimeHpMultiplier;
             case EnemySize.Large:
-                return 2f;
+                return 2f * runtimeHpMultiplier;
             case EnemySize.Medium:
             default:
-                return 1f;
+                return runtimeHpMultiplier;
         }
     }
 

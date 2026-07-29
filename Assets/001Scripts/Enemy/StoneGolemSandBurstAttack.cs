@@ -114,7 +114,7 @@ public sealed class StoneGolemSandBurstAttack : MonoBehaviour
         float baseAngle = attackSequence * 71f;
         Vector3[] offsets = BuildBurstOffsets(burstCount, clusterSpread, baseAngle);
         float damage = enemyHealth.data != null
-            ? enemyHealth.data.atk * damageMultiplier
+            ? enemyHealth.AttackDamage * damageMultiplier
             : 20f * damageMultiplier;
 
         for (int i = 0; i < offsets.Length; i++)

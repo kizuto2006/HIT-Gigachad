@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class EnemyAI : MonoBehaviour
 {
+    private const float GlobalEnemySpeedMultiplier = 2f / 3f;
+
     [Header("Climbing")]
     public float climbSpeed = 4f;
 
@@ -34,7 +36,7 @@ public class EnemyAI : MonoBehaviour
             }
 
             return enemyHealth != null && enemyHealth.data != null
-                ? Mathf.Max(0f, enemyHealth.data.speed)
+                ? Mathf.Max(0f, enemyHealth.data.speed * GlobalEnemySpeedMultiplier)
                 : 0f;
         }
     }

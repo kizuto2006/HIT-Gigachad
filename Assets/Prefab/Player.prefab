@@ -317,7 +317,7 @@ MonoBehaviour:
   TargetOffset: {x: 0, y: 0, z: 0}
   TrackerSettings:
     BindingMode: 4
-    PositionDamping: {x: 0.08, y: 0.15, z: 0.08}
+    PositionDamping: {x: 0.1, y: 0.18, z: 0.1}
     AngularDampingMode: 0
     RotationDamping: {x: 1, y: 1, z: 1}
     QuaternionDamping: 1
@@ -455,23 +455,23 @@ MonoBehaviour:
       Enabled: 1
       Input:
         InputAction: {fileID: -5630151704836100654, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-        Gain: 0.06
+        Gain: 0.058
         CancelDeltaTime: 1
       InputValue: 0
       Driver:
-        AccelTime: 0
-        DecelTime: 0
+        AccelTime: 0.055
+        DecelTime: 0.09
     - Name: Look Orbit Y
       Owner: {fileID: 4980928299053342728}
       Enabled: 1
       Input:
         InputAction: {fileID: -5630151704836100654, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-        Gain: 0.06
+        Gain: 0.05
         CancelDeltaTime: 1
       InputValue: 0
       Driver:
-        AccelTime: 0
-        DecelTime: 0
+        AccelTime: 0.065
+        DecelTime: 0.1
     - Name: Orbit Scale
       Owner: {fileID: 4980928299053342728}
       Enabled: 1

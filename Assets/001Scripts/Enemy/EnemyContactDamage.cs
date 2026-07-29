@@ -18,6 +18,7 @@ public class EnemyContactDamage : MonoBehaviour
 
     private PlayerHealth playerHealth;
     private PlayerSimpleMovement playerMovement;
+    private EnemyHealth enemyHealth;
     private float lastDamageTime = -999f;
 
     private void OnEnable()
@@ -27,6 +28,8 @@ public class EnemyContactDamage : MonoBehaviour
 
     private void Start()
     {
+        enemyHealth = GetComponent<EnemyHealth>();
+
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null)
         {
@@ -56,9 +59,10 @@ public class EnemyContactDamage : MonoBehaviour
         if (Time.time >= lastDamageTime + damageCooldown)
         {
             lastDamageTime = Time.time;
-            playerHealth.TakeDamage(data.atk);
+            float damage = GetAttackDamage();
+            playerHealth.TakeDamage(damage);
             
-            Debug.Log($"[Contact] {gameObject.name} dealt {data.atk:F1} damage to Player");
+            Debug.Log($"[Contact] {gameObject.name} dealt {damage:F1} damage to Player");
         }
     }
 
@@ -79,10 +83,21 @@ public class EnemyContactDamage : MonoBehaviour
         if (Time.time >= lastDamageTime + damageCooldown)
         {
             lastDamageTime = Time.time;
-            playerHealth.TakeDamage(data.atk);
+            float damage = GetAttackDamage();
+            playerHealth.TakeDamage(damage);
             
-            Debug.Log($"[Contact] {gameObject.name} dealt {data.atk:F1} damage to Player (first hit)");
+            Debug.Log($"[Contact] {gameObject.name} dealt {damage:F1} damage to Player (first hit)");
         }
+    }
+
+    private float GetAttackDamage()
+    {
+        if (enemyHealth == null)
+        {
+            enemyHealth = GetComponent<EnemyHealth>();
+        }
+
+        return enemyHealth != null ? enemyHealth.AttackDamage : data.atk;
     }
 
     private void PushPlayerContinuously()

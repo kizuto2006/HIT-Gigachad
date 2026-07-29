@@ -91,7 +91,7 @@ public sealed class StoneGolemSeismicRingAttack : MonoBehaviour
         Destroy(telegraph);
 
         float damage = enemyHealth.data != null
-            ? enemyHealth.data.atk * damageMultiplier
+            ? enemyHealth.AttackDamage * damageMultiplier
             : 20f * damageMultiplier;
 
         for (int i = 0; i < pulseCount; i++)
