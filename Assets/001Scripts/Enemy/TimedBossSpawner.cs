@@ -11,7 +11,7 @@ public sealed class TimedBossSpawner : MonoBehaviour
     [SerializeField] private Transform player;
 
     [Header("Timing")]
-    [SerializeField, Min(0f)] private float spawnDelay = 120f;
+    [SerializeField, Min(0f)] private float spawnDelay = 180f;
 
     [Header("Placement")]
     [SerializeField, Min(1f)] private float spawnDistance = 18f;

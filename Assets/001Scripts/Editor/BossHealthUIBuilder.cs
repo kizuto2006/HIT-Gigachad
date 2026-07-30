@@ -120,7 +120,7 @@ internal static class BossHealthUIBuilder
         encounter.GetComponent<TimedBossSpawner>().Configure(
             bossPrefab,
             playerObject.transform,
-            120f,
+            180f,
             18f);
 
         GameObject root = new GameObject(
@@ -177,7 +177,7 @@ internal static class BossHealthUIBuilder
         EditorSceneManager.SaveScene(scene);
         Selection.activeGameObject = encounter;
         EditorGUIUtility.PingObject(encounter);
-        Debug.Log("[BossHealthUIBuilder] Đã thêm Stone Golem mốc 02:00 và UI vào DesertArena.", encounter);
+        Debug.Log("[BossHealthUIBuilder] Đã thêm Stone Golem mốc 03:00 và UI vào DesertArena.", encounter);
     }
 
     private static EnemyHealth FindSampleBoss()

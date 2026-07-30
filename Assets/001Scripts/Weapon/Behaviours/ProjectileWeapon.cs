@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 /// <summary>
@@ -25,11 +26,11 @@ public class ProjectileWeapon : WeaponBehaviour
     [Tooltip("Giới hạn nửa chiều rộng để đội hình không xòe quá lớn.")]
     [Min(0.1f)] public float maxFormationHalfWidth = 0.55f;
 
-    [Tooltip("Offset từ bone hông tới điểm xuất phát projectile/VFX.")]
-    public Vector3 spawnOffset = new Vector3(0f, 0f, 0.45f);
+    [Tooltip("Offset from the chest anchor toward the current target.")]
+    public Vector3 spawnOffset = new Vector3(0f, 0.03f, 0.35f);
 
-    [Tooltip("Độ cao fallback tính từ Player root nếu model không có bone Hips.")]
-    [Min(0f)] public float fallbackHipHeight = 0.25f;
+    [Tooltip("Fallback chest height above the Player root when no chest bone exists.")]
+    [Min(0f)] public float fallbackChestHeight = 1.25f;
 
     private Transform spawnAnchor;
 
@@ -42,49 +43,63 @@ public class ProjectileWeapon : WeaponBehaviour
             return;
         }
 
+        DeferCooldownUntilAttackCompletes();
+        StartCoroutine(AttackSequence());
+    }
+
+    private IEnumerator AttackSequence()
+    {
         int count = Mathf.Max(1, GetFinalProjCount());
         float damage = GetFinalDamage();
         float speed = GetFinalProjectileSpeed();
         float firstRolledDamage = RollCritDamage(damage);
         Transform target = FindClosestEnemy(targetRange, firstRolledDamage);
+
         if (target == null)
-            return;
+        {
+            CompleteAttackCycle();
+            yield break;
+        }
 
-        Vector3 spawnPos = GetSpawnPosition();
-
-        Vector3 targetCenter = GetTargetCenter(target, out Collider targetCollider);
-        Vector3 baseDirection = targetCenter - spawnPos;
-        if (baseDirection.sqrMagnitude <= 0.0001f)
-            baseDirection = playerTransform.forward;
-        baseDirection.Normalize();
-
-        Vector3 formationRight = Vector3.Cross(Vector3.up, baseDirection);
-        if (formationRight.sqrMagnitude <= 0.0001f)
-            formationRight = playerTransform.right;
-        formationRight.Normalize();
-
-        float targetDistance = Vector3.Distance(spawnPos, targetCenter);
-        float targetHalfWidth = GetFormationHalfWidth(
-            targetCollider,
-            formationRight,
-            targetDistance,
-            count);
-        float minimumSpawnHalfWidth =
-            minimumArrowSpacing * (count - 1) * 0.5f;
-        float spawnHalfWidth = Mathf.Min(
-            maxFormationHalfWidth,
-            Mathf.Max(targetHalfWidth, minimumSpawnHalfWidth));
-
-        bool firedAnyProjectile = false;
         for (int i = 0; i < count; i++)
         {
+            if (target == null || !target.gameObject.activeInHierarchy)
+                target = FindClosestEnemy(targetRange, damage);
+
+            if (target == null)
+                break;
+
+            Vector3 targetCenter =
+                GetTargetCenter(target, out Collider targetCollider);
+            Vector3 spawnPos = GetSpawnPosition(targetCenter);
+            Vector3 baseDirection = targetCenter - spawnPos;
+            if (baseDirection.sqrMagnitude <= 0.0001f)
+                baseDirection = playerTransform.forward;
+            baseDirection.Normalize();
+
+            Vector3 formationRight = Vector3.Cross(Vector3.up, baseDirection);
+            if (formationRight.sqrMagnitude <= 0.0001f)
+                formationRight = playerTransform.right;
+            formationRight.Normalize();
+
+            float targetDistance = Vector3.Distance(spawnPos, targetCenter);
+            float targetHalfWidth = GetFormationHalfWidth(
+                targetCollider,
+                formationRight,
+                targetDistance,
+                count);
+            float minimumSpawnHalfWidth =
+                minimumArrowSpacing * (count - 1) * 0.5f;
+            float spawnHalfWidth = Mathf.Min(
+                maxFormationHalfWidth,
+                Mathf.Max(targetHalfWidth, minimumSpawnHalfWidth));
+
             float slot = count == 1
                 ? 0f
                 : Mathf.Lerp(-1f, 1f, i / (float)(count - 1));
             float arc = count > 2
                 ? formationArcHeight * (1f - slot * slot)
                 : 0f;
-
             Vector3 spawnFormationOffset =
                 formationRight * (slot * spawnHalfWidth) +
                 Vector3.up * arc;
@@ -102,55 +117,77 @@ public class ProjectileWeapon : WeaponBehaviour
                 data.projectilePrefab,
                 projectileSpawnPos,
                 Quaternion.LookRotation(direction));
-            if (projectile == null)
-                continue;
+            if (projectile != null)
+            {
+                float damageMultiplier = i == 0
+                    ? 1f
+                    : data.additionalProjectileDamageMultiplier;
+                float rolledDamage = i == 0
+                    ? firstRolledDamage
+                    : RollCritDamage(damage * damageMultiplier);
+                projectile.Setup(
+                    rolledDamage,
+                    speed,
+                    GetFinalPierce(),
+                    GetFinalKnockback(),
+                    enemyLayer,
+                    playerTransform,
+                    target,
+                    720f,
+                    GetFinalSize(),
+                    targetFormationOffset);
 
-            float rolledDamage = i == 0
-                ? firstRolledDamage
-                : RollCritDamage(damage);
-            projectile.Setup(
-                rolledDamage,
-                speed,
-                GetFinalPierce(),
-                GetFinalKnockback(),
-                enemyLayer,
-                playerTransform,
-                target,
-                720f,
-                GetFinalSize(),
-                targetFormationOffset);
-            firedAnyProjectile = true;
+                if (data.attackEffectPrefab != null)
+                {
+                    ProjectilePool.SpawnEffect(
+                        data.attackEffectPrefab,
+                        projectileSpawnPos,
+                        Quaternion.LookRotation(direction),
+                        0.4f);
+                }
+
+                if (data.attackSound != null)
+                    AudioSource.PlayClipAtPoint(
+                        data.attackSound,
+                        projectileSpawnPos);
+            }
+
+            if (i < count - 1 && data.projectileBurstInterval > 0f)
+                yield return new WaitForSeconds(data.projectileBurstInterval);
         }
 
-        if (!firedAnyProjectile)
-            return;
-
-        if (data.attackEffectPrefab != null)
-        {
-            ProjectilePool.SpawnEffect(
-                data.attackEffectPrefab,
-                spawnPos,
-                Quaternion.LookRotation(baseDirection),
-                0.4f);
-        }
-
-        if (data.attackSound != null)
-            AudioSource.PlayClipAtPoint(data.attackSound, spawnPos);
+        CompleteAttackCycle();
     }
 
-    private Vector3 GetSpawnPosition()
+
+private Vector3 GetSpawnPosition(Vector3 targetPosition)
     {
         Vector3 origin = spawnAnchor != null
             ? spawnAnchor.position
-            : playerTransform.position + playerTransform.up * fallbackHipHeight;
+            : playerTransform.position +
+              playerTransform.up * fallbackChestHeight;
+
+        Vector3 aimForward = targetPosition - origin;
+        aimForward.y = 0f;
+        if (aimForward.sqrMagnitude <= 0.0001f)
+        {
+            aimForward = playerTransform.forward;
+            aimForward.y = 0f;
+        }
+        aimForward.Normalize();
+
+        Vector3 aimRight = Vector3.Cross(Vector3.up, aimForward);
+        if (aimRight.sqrMagnitude <= 0.0001f)
+            aimRight = playerTransform.right;
+        aimRight.Normalize();
 
         return origin
-            + playerTransform.right * spawnOffset.x
+            + aimRight * spawnOffset.x
             + playerTransform.up * spawnOffset.y
-            + playerTransform.forward * spawnOffset.z;
+            + aimForward * spawnOffset.z;
     }
 
-    private static Transform FindHipAnchor(Transform player)
+    private static Transform FindChestAnchor(Transform player)
     {
         if (player == null)
             return null;
@@ -158,17 +195,34 @@ public class ProjectileWeapon : WeaponBehaviour
         Animator animator = player.GetComponentInChildren<Animator>(true);
         if (animator != null && animator.isHuman)
         {
-            Transform humanoidHips = animator.GetBoneTransform(HumanBodyBones.Hips);
-            if (humanoidHips != null)
-                return humanoidHips;
+            Transform upperChest =
+                animator.GetBoneTransform(HumanBodyBones.UpperChest);
+            if (upperChest != null)
+                return upperChest;
+
+            Transform chest = animator.GetBoneTransform(HumanBodyBones.Chest);
+            if (chest != null)
+                return chest;
+
+            Transform spine = animator.GetBoneTransform(HumanBodyBones.Spine);
+            if (spine != null)
+                return spine;
         }
 
-        Transform[] descendants = player.GetComponentsInChildren<Transform>(true);
+        Transform[] descendants =
+            player.GetComponentsInChildren<Transform>(true);
         for (int i = 0; i < descendants.Length; i++)
         {
             string childName = descendants[i].name;
-            if (childName == "Hips" || childName.EndsWith(":Hips"))
+            if (childName == "UpperChest" ||
+                childName.EndsWith(":UpperChest") ||
+                childName == "Chest" ||
+                childName.EndsWith(":Chest") ||
+                childName == "Spine2" ||
+                childName.EndsWith(":Spine2"))
+            {
                 return descendants[i];
+            }
         }
 
         return null;
@@ -256,6 +310,6 @@ public class ProjectileWeapon : WeaponBehaviour
         Transform player)
     {
         base.Initialize(stats, enemyMask, player);
-        spawnAnchor = FindHipAnchor(player);
+        spawnAnchor = FindChestAnchor(player);
     }
 }

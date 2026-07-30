@@ -49,6 +49,8 @@ public class WeaponData : ScriptableObject
     [Tooltip("Hệ số damage của mỗi nhát/projectile phụ sau nhát đầu tiên.")]
     [Range(0f, 1f)] public float additionalProjectileDamageMultiplier = 1f;
     [Min(1)] public int projectileCount = 1;
+    [Tooltip("Delay between shots inside a multi-projectile burst.")]
+    [Min(0f)] public float projectileBurstInterval = 0.08f;
     [Tooltip("Hệ số kích thước hitbox hoặc projectile.")]
     [Min(0.01f)] public float size = 1f;
     [Tooltip("Hiển thị Size trên thẻ nâng cấp dưới dạng phần trăm so với kích thước gốc.")]

@@ -53,7 +53,7 @@ MonoBehaviour:
   automaticSecondStatChance: 0
   automaticProjectileCountInterval: 10
   disableAutomaticProjectileCountUpgrades: 1
-  automaticMaxProjectileCount: 100
+  automaticMaxProjectileCount: 2
   grantSecondProjectileAtLevel2: 0
   attackType: 1
   attackEffectPrefab: {fileID: 5935097833217495665, guid: 94aa1dd1e5271d244b4b626b0b7d6a33, type: 3}

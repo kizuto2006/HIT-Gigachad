@@ -12,6 +12,7 @@ public sealed class SwordWeapon : WeaponBehaviour
 
     public override void Attack()
     {
+        DeferCooldownUntilAttackCompletes();
         StartCoroutine(AttackSequence());
     }
 
@@ -25,17 +26,28 @@ public sealed class SwordWeapon : WeaponBehaviour
             float radius = GetFinalSize();
             Vector3 forward = playerTransform.forward;
             forward.y = 0f;
-            forward = forward.sqrMagnitude > 0.001f ? forward.normalized : Vector3.forward;
+            forward = forward.sqrMagnitude > 0.001f
+                ? forward.normalized
+                : Vector3.forward;
 
-            float damageMultiplier = i == 0 ? 1f : data.additionalProjectileDamageMultiplier;
-            Vector3 attackCenter = playerTransform.position + forward * (radius * ForwardOffsetRatio);
-            DamageEnemiesInSlash(attackCenter, forward, radius, damageMultiplier);
+            float damageMultiplier = i == 0
+                ? 1f
+                : data.additionalProjectileDamageMultiplier;
+            Vector3 attackCenter =
+                playerTransform.position + forward * (radius * ForwardOffsetRatio);
+            DamageEnemiesInSlash(
+                attackCenter,
+                forward,
+                radius,
+                damageMultiplier);
             SpawnSlashVFX(playerTransform.position, radius);
             PlayAttackSound(attackCenter);
 
             if (i < slashCount - 1)
                 yield return new WaitForSeconds(interval);
         }
+
+        CompleteAttackCycle();
     }
 
 

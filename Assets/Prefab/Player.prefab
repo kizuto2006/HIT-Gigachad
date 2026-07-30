@@ -1851,6 +1851,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 2da2793f82fe43b786cda57a381e7713, type: 2}
   - {fileID: 11400000, guid: ed0b157eaef666b4488e984cff57e191, type: 2}
   - {fileID: 11400000, guid: 26c6441acd2bc3b47bcbacc980a0a7be, type: 2}
+  - {fileID: 11400000, guid: 95e7a808f430f7145b5630a7d79a7248, type: 2}
   allTomes:
   - {fileID: 11400000, guid: dcc6a92917946a84485ff266fc0f5be6, type: 2}
   - {fileID: 11400000, guid: 6079bae6ade8a1f4ca9cb6f1f76fa470, type: 2}

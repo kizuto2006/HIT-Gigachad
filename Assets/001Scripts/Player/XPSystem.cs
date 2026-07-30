@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// Hệ thống XP & Level. Gắn trên Player.
 /// Khi đủ XP → level up → broadcast event OnLevelUp.
-/// Công thức XP cần: 10 + currentLevel * 5 (tăng dần theo level).
+/// Từ level 5, XP yêu cầu tăng nhanh hơn để giữ độ khó về sau.
 /// </summary>
 public class XPSystem : MonoBehaviour
 {
@@ -18,6 +18,10 @@ public class XPSystem : MonoBehaviour
     public int baseXPRequired = 10;
     [Tooltip("XP thêm mỗi level.")]
     public int xpPerLevel = 5;
+    [Tooltip("Level bắt đầu áp dụng phần XP độ khó bổ sung.")]
+    [Min(1)] public int difficultyScalingStartLevel = 5;
+    [Tooltip("XP cộng dồn thêm cho mỗi level kể từ mốc độ khó.")]
+    [Min(0)] public int bonusXPPerLevel = 10;
 
     /// <summary>
     /// Event broadcast khi player level up. Parameter = level mới.
@@ -35,7 +39,14 @@ public class XPSystem : MonoBehaviour
     /// <summary>
     /// XP cần để đạt level tiếp theo.
     /// </summary>
-    public int XPToNextLevel => baseXPRequired + currentLevel * xpPerLevel;
+    public int XPToNextLevel
+    {
+        get
+        {
+            int difficultyLevels = Mathf.Max(0, currentLevel - difficultyScalingStartLevel + 1);
+            return baseXPRequired + currentLevel * xpPerLevel + difficultyLevels * bonusXPPerLevel;
+        }
+    }
 
     /// <summary>
     /// Tỷ lệ XP hiện tại / XP cần (0..1). Dùng cho XP bar UI.
@@ -61,5 +72,13 @@ public class XPSystem : MonoBehaviour
             OnLevelUp?.Invoke(currentLevel);
             OnXPChanged?.Invoke(currentXP, XPToNextLevel);
         }
+    }
+
+    private void OnValidate()
+    {
+        baseXPRequired = Mathf.Max(1, baseXPRequired);
+        xpPerLevel = Mathf.Max(0, xpPerLevel);
+        difficultyScalingStartLevel = Mathf.Max(1, difficultyScalingStartLevel);
+        bonusXPPerLevel = Mathf.Max(0, bonusXPPerLevel);
     }
 }

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac68658aecada701fb4328d4ed4ff287, type: 3}
   m_Name: EnemyData_StoneGolemBoss
   m_EditorClassIdentifier: Assembly-CSharp::EnemyData
-  hp: 400
+  hp: 600
   atk: 22
   speed: 2.4
   armor: 3

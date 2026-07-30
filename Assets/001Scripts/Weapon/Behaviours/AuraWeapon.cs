@@ -18,6 +18,7 @@ public sealed class AuraWeapon : WeaponBehaviour
 
     public override void Attack()
     {
+        DeferCooldownUntilAttackCompletes();
         StartCoroutine(AttackSequence());
     }
 
@@ -32,10 +33,13 @@ public sealed class AuraWeapon : WeaponBehaviour
 
         for (int i = 0; i < pulseCount; i++)
         {
-            GameObject pulseObject = new GameObject($"Aura_{data.weaponName}_DamagePulse");
+            GameObject pulseObject =
+                new GameObject($"Aura_{data.weaponName}_DamagePulse");
             pulseObject.transform.position = playerTransform.position;
 
-            float damageMultiplier = i == 0 ? 1f : data.additionalProjectileDamageMultiplier;
+            float damageMultiplier = i == 0
+                ? 1f
+                : data.additionalProjectileDamageMultiplier;
             AuraDamagePulse pulse = pulseObject.AddComponent<AuraDamagePulse>();
             pulse.Initialize(
                 GetFinalDamage() * damageMultiplier,
@@ -43,15 +47,23 @@ public sealed class AuraWeapon : WeaponBehaviour
                 GetFinalDuration(),
                 GetFinalKnockback(),
                 GetFinalCritChance(),
-                playerStats != null ? playerStats.FinalCriticalDamageMultiplier : 2f,
+                playerStats != null
+                    ? playerStats.FinalCriticalDamageMultiplier
+                    : 2f,
                 playerTransform);
 
             if (i == 0 && data.attackSound != null)
-                AudioSource.PlayClipAtPoint(data.attackSound, playerTransform.position);
+            {
+                AudioSource.PlayClipAtPoint(
+                    data.attackSound,
+                    playerTransform.position);
+            }
 
             if (i < pulseCount - 1)
                 yield return new WaitForSeconds(interval);
         }
+
+        CompleteAttackCycle();
     }
 
 

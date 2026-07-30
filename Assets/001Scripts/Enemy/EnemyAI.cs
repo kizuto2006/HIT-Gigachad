@@ -36,7 +36,7 @@ public class EnemyAI : MonoBehaviour
             }
 
             return enemyHealth != null && enemyHealth.data != null
-                ? Mathf.Max(0f, enemyHealth.data.speed * GlobalEnemySpeedMultiplier)
+                ? enemyHealth.MovementSpeed * GlobalEnemySpeedMultiplier
                 : 0f;
         }
     }

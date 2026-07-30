@@ -1,0 +1,275 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &124288124497535397
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3577463825630290588}
+  m_Layer: 0
+  m_Name: Visual
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3577463825630290588
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 124288124497535397}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1.568, y: 1.568, z: 1.568}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 4203891984340028480}
+  m_Father: {fileID: 8604151811533228947}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &8404712746620272126
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8604151811533228947}
+  - component: {fileID: 3998659784211877055}
+  - component: {fileID: 8681507176885719048}
+  - component: {fileID: 2756698632102805903}
+  - component: {fileID: 8131520095257521970}
+  - component: {fileID: 3293530142940005957}
+  - component: {fileID: 1442233652178064840}
+  - component: {fileID: 3817602218707026038}
+  m_Layer: 0
+  m_Name: Enemy_StoneGolemBoss
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8604151811533228947
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8404712746620272126}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 3577463825630290588}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3998659784211877055
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8404712746620272126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0639012888e84049aee04c182b3ff56, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyAI
+  climbSpeed: 4
+  knockbackDamping: 14
+--- !u!114 &8681507176885719048
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8404712746620272126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7cd435469274932ad9ab04eff482ec9f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyHealth
+  data: {fileID: 11400000, guid: d5e49c56a52b4698833707962d16f05c, type: 2}
+  xpGemPrefab: {fileID: 6112283165347277468, guid: 700e3636661fb674b9ba688726c40508, type: 3}
+  hitFlashDuration: 0.1
+  hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
+  currentHp: 0
+--- !u!114 &2756698632102805903
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8404712746620272126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f1a2cdf2029580f58899efb1877e4b17, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyContactDamage
+  data: {fileID: 11400000, guid: d5e49c56a52b4698833707962d16f05c, type: 2}
+  damageCooldown: 1.25
+  contactPushSpeed: 4
+--- !u!136 &8131520095257521970
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8404712746620272126}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 2.2488797
+  m_Height: 4.4977593
+  m_Direction: 1
+  m_Center: {x: -0.17114162, y: 1.3823185, z: 0.106122375}
+--- !u!114 &3293530142940005957
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8404712746620272126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2729af1b42eb843418cecf3507d7a2e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoneGolemSandBurstAttack
+  enemyAI: {fileID: 0}
+  enemyHealth: {fileID: 0}
+  target: {fileID: 0}
+  cooldown: 4.5
+  initialDelay: 1.25
+  telegraphDuration: 0.9
+  burstInterval: 0.14
+  recoveryDuration: 0.55
+  burstCount: 3
+  burstRadius: 1.65
+  clusterSpread: 2.15
+  activationRange: 36
+  predictionStrength: 0.9
+  predictionLookAhead: 0.75
+  maxPredictionDistance: 7
+  damageMultiplier: 1
+  knockbackForce: 10
+--- !u!114 &1442233652178064840
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8404712746620272126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d97164346da71142b58007c69530037, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoneGolemBossAttackLock
+--- !u!114 &3817602218707026038
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8404712746620272126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 51f1e25e2fd07f146828e61dcbd295f5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoneGolemSeismicRingAttack
+  cooldown: 8
+  initialDelay: 4
+  telegraphDuration: 0.8
+  pulseTravelDuration: 0.42
+  pulseInterval: 0.22
+  recoveryDuration: 0.65
+  pulseCount: 3
+  firstRadius: 4
+  radiusStep: 3
+  ringWidth: 0.85
+  activationRange: 36
+  safeJumpHeight: 0.9
+  damageMultiplier: 0.7
+  knockbackForce: 8
+--- !u!1001 &7188904614298597588
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 3577463825630290588}
+    m_Modifications:
+    - target: {fileID: 3498914161268906485, guid: 76e80371788079b4689b355b9a2acd4b, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: ac101d039246f594ea4b766b3e11ec0f, type: 2}
+    - target: {fileID: 4140221092180926686, guid: 76e80371788079b4689b355b9a2acd4b, type: 3}
+      propertyPath: m_Name
+      value: StoneGolemWalking_Flipbook
+      objectReference: {fileID: 0}
+    - target: {fileID: 6454546482771801236, guid: 76e80371788079b4689b355b9a2acd4b, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6454546482771801236, guid: 76e80371788079b4689b355b9a2acd4b, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6454546482771801236, guid: 76e80371788079b4689b355b9a2acd4b, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6454546482771801236, guid: 76e80371788079b4689b355b9a2acd4b, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6454546482771801236, guid: 76e80371788079b4689b355b9a2acd4b, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6454546482771801236, guid: 76e80371788079b4689b355b9a2acd4b, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6454546482771801236, guid: 76e80371788079b4689b355b9a2acd4b, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6454546482771801236, guid: 76e80371788079b4689b355b9a2acd4b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6454546482771801236, guid: 76e80371788079b4689b355b9a2acd4b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6454546482771801236, guid: 76e80371788079b4689b355b9a2acd4b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 76e80371788079b4689b355b9a2acd4b, type: 3}
+--- !u!4 &4203891984340028480 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 6454546482771801236, guid: 76e80371788079b4689b355b9a2acd4b, type: 3}
+  m_PrefabInstance: {fileID: 7188904614298597588}
+  m_PrefabAsset: {fileID: 0}

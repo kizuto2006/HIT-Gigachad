@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70b7107a794942b9a4628d3999958537, type: 3}
+  m_Name: Revolver
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponData
+  id: revolver
+  weaponName: Revolver
+  description: Fires quick, accurate rounds at the nearest enemy.
+  icon: {fileID: 21300000, guid: 06b8dc4cb42f3a54b9d5e821e2d6ee67, type: 3}
+  weaponType: 1
+  rarity: 0
+  atk: 5
+  crit: 0.2
+  projectileSpeed: 55
+  additionalProjectileDamageMultiplier: 0.65
+  projectileCount: 6
+  projectileBurstInterval: 0.1
+  size: 1
+  displaySizeAsPercent: 1
+  cooldown: 0.75
+  maxAttackSpeedMultiplier: 5
+  pierce: 0
+  knockback: 0.2
+  duration: 3
+  hitInterval: 0.5
+  orbitRadius: 2
+  orbitSpeed: 180
+  maxLevel: 40
+  damagePerLevel: 4
+  cooldownReductionPerLevel: 0.04
+  sizePerLevel: 0.08
+  projCountPerLevel: 0
+  useAutomaticLevelUpgrades: 1
+  automaticUpgradeStats: 41
+  automaticDamageBonus: 1.25
+  automaticSizeBonus: 0.12
+  automaticProjectileSpeedBonus: 0.75
+  automaticCooldownReduction: 0.012
+  automaticCriticalChanceBonus: 0.015
+  automaticProjectileCountBonus: 1
+  automaticKnockbackBonus: 0.12
+  automaticSecondStatInterval: 999
+  randomizeAutomaticSecondStat: 0
+  automaticSecondStatChance: 0
+  automaticProjectileCountInterval: 10
+  disableAutomaticProjectileCountUpgrades: 0
+  automaticMaxProjectileCount: 10
+  grantSecondProjectileAtLevel2: 0
+  attackType: 2
+  attackEffectPrefab: {fileID: 5035383699600101640, guid: 65802f02bdac1214b9581ea779ec0c2d, type: 3}
+  projectilePrefab: {fileID: 684070718362971925, guid: 03b7ca3bd770c8c48a7d621f7671715d, type: 3}
+  attackAnimation: {fileID: 0}
+  attackSound: {fileID: 0}

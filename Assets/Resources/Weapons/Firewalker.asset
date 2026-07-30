@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70b7107a794942b9a4628d3999958537, type: 3}
+  m_Name: Firewalker
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponData
+  id: firewalker
+  weaponName: Firewalker
+  description: Burns nearby enemies with flames under the player's feet.
+  icon: {fileID: 21300000, guid: cc061035e5b4c9543843e8bcd4bdcbd5, type: 3}
+  weaponType: 2
+  rarity: 1
+  atk: 5
+  crit: 0.05
+  projectileSpeed: 0
+  additionalProjectileDamageMultiplier: 1
+  projectileCount: 1
+  size: 1.2
+  displaySizeAsPercent: 1
+  cooldown: 0.7
+  maxAttackSpeedMultiplier: 2.5
+  pierce: 0
+  knockback: 0.15
+  duration: 0.75
+  hitInterval: 0.25
+  orbitRadius: 2
+  orbitSpeed: 180
+  maxLevel: 40
+  damagePerLevel: 5
+  cooldownReductionPerLevel: 0.05
+  sizePerLevel: 0.1
+  projCountPerLevel: 0
+  useAutomaticLevelUpgrades: 1
+  automaticUpgradeStats: 11
+  automaticDamageBonus: 1.3
+  automaticSizeBonus: 0.1
+  automaticProjectileSpeedBonus: 0.75
+  automaticCooldownReduction: 0.012
+  automaticCriticalChanceBonus: 0.05
+  automaticProjectileCountBonus: 1
+  automaticKnockbackBonus: 0.12
+  automaticSecondStatInterval: 4
+  randomizeAutomaticSecondStat: 1
+  automaticSecondStatChance: 0.35
+  automaticProjectileCountInterval: 10
+  disableAutomaticProjectileCountUpgrades: 1
+  automaticMaxProjectileCount: 1
+  grantSecondProjectileAtLevel2: 0
+  attackType: 4
+  attackEffectPrefab: {fileID: 7994844134158460895, guid: 6c64559719fa0f7418a5cdc286e26af1, type: 3}
+  projectilePrefab: {fileID: 0}
+  attackAnimation: {fileID: 0}
+  attackSound: {fileID: 0}

@@ -17,6 +17,8 @@ public abstract class WeaponBehaviour : MonoBehaviour
     public int CurrentLevel => currentLevel;
 
     protected float cooldownTimer;
+    private bool attackInProgress;
+    private bool cooldownDeferred;
     protected PlayerBaseStats playerStats;
     protected LayerMask enemyLayer;
     protected Transform playerTransform;
@@ -34,6 +36,8 @@ public abstract class WeaponBehaviour : MonoBehaviour
         enemyLayer = enemyMask;
         playerTransform = player;
         cooldownTimer = 0f;
+        attackInProgress = false;
+        cooldownDeferred = false;
     }
 
     // ═══════════════════════════════════════════
@@ -108,15 +112,40 @@ public abstract class WeaponBehaviour : MonoBehaviour
 
     protected virtual void Update()
     {
-        if (data == null) return;
+        if (data == null || attackInProgress)
+            return;
 
         cooldownTimer -= Time.deltaTime;
-        if (cooldownTimer <= 0f)
-        {
-            Attack();
-            cooldownTimer = GetFinalCooldown();
-        }
+        if (cooldownTimer > 0f)
+            return;
+
+        attackInProgress = true;
+        cooldownDeferred = false;
+        Attack();
+
+        if (!cooldownDeferred)
+            CompleteAttackCycle();
     }
+
+    /// <summary>
+    /// Call before starting a multi-hit coroutine. The cooldown will remain
+    /// stopped until CompleteAttackCycle is called after the final hit.
+    /// </summary>
+    protected void DeferCooldownUntilAttackCompletes()
+    {
+        cooldownDeferred = true;
+    }
+
+    /// <summary>
+    /// Finishes the current attack and starts its cooldown from this moment.
+    /// </summary>
+    protected void CompleteAttackCycle()
+    {
+        attackInProgress = false;
+        cooldownDeferred = false;
+        cooldownTimer = GetFinalCooldown();
+    }
+
 
     /// <summary>
     /// Logic tấn công cụ thể — override trong từng weapon type.

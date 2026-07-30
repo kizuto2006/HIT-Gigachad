@@ -36,7 +36,8 @@ public sealed class EnemyMiniBoss : MonoBehaviour
         bool makeMiniBoss,
         float scaleMultiplier,
         float hpMultiplier,
-        float damageMultiplier)
+        float damageMultiplier,
+        float speedMultiplier)
     {
         isMiniBoss = makeMiniBoss;
 
@@ -50,7 +51,8 @@ public sealed class EnemyMiniBoss : MonoBehaviour
             enemyHealth.ConfigureRuntimeVariant(
                 makeMiniBoss ? scaleMultiplier : 1f,
                 makeMiniBoss ? hpMultiplier : 1f,
-                makeMiniBoss ? damageMultiplier : 1f);
+                makeMiniBoss ? damageMultiplier : 1f,
+                makeMiniBoss ? speedMultiplier : 1f);
         }
 
         if (crownObject == null)

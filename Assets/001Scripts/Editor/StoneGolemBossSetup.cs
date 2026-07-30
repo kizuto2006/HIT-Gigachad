@@ -24,8 +24,8 @@ internal static class StoneGolemBossSetup
     private const string MetallicPath = "Assets/Model/Enemy/StoneGolem/Meshy_AI_desert_stone_golem_30_biped_texture_0_metallic.png";
 private const string SampleScenePath = "Assets/Scenes/SampleScene.unity";
 
-    // EnemyHealth doubles HP for EnemySize.Large, so effective boss HP is 800.
-    private const float BaseHp = 400f;
+    // EnemyHealth doubles HP for EnemySize.Large, so effective boss HP is 1,200.
+    private const float BaseHp = 600f;
     private const float Attack = 22f;
     private const float MoveSpeed = 2.4f;
     private const float Armor = 3f;
@@ -94,7 +94,7 @@ ConfigureBossPrefab();
 
         Debug.Log(
             "[StoneGolemBossSetup] Đã tạo Stone Golem Boss với animation Walking và material URP. " +
-            $"HP thực tế 800, ATK {Attack}, Speed {MoveSpeed}, Armor {Armor}, XP {XpReward}.",
+            $"HP thực tế 1.200, ATK {Attack}, Speed {MoveSpeed}, Armor {Armor}, XP {XpReward}.",
             result.prefabAsset);
     }
 

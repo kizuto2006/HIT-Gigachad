@@ -43,11 +43,15 @@ public class EnemyHealth : MonoBehaviour
     private float runtimeScaleMultiplier = 1f;
     private float runtimeHpMultiplier = 1f;
     private float runtimeAttackMultiplier = 1f;
+    private float runtimeSpeedMultiplier = 1f;
 
     private bool isSpawnProtected;
 
     public float AttackDamage => data != null
         ? Mathf.Max(0f, data.atk * runtimeAttackMultiplier)
+        : 0f;
+    public float MovementSpeed => data != null
+        ? Mathf.Max(0f, data.speed * runtimeSpeedMultiplier)
         : 0f;
     public bool IsMiniBoss => runtimeHpMultiplier > 1f;
 
@@ -79,11 +83,13 @@ public class EnemyHealth : MonoBehaviour
     public void ConfigureRuntimeVariant(
         float scaleMultiplier,
         float hpMultiplier,
-        float attackMultiplier)
+        float attackMultiplier,
+        float speedMultiplier)
     {
         runtimeScaleMultiplier = Mathf.Max(0.01f, scaleMultiplier);
         runtimeHpMultiplier = Mathf.Max(0.01f, hpMultiplier);
         runtimeAttackMultiplier = Mathf.Max(0f, attackMultiplier);
+        runtimeSpeedMultiplier = Mathf.Max(0f, speedMultiplier);
 
         // Apply immediately even while this pooled enemy is inactive. Emergence
         // disables EnemyHealth until the enemy reaches the ground, so waiting for

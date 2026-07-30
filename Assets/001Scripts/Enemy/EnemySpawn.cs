@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.Collections;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Pool;
+using UnityEngine.UI;
 
 
 public class EnemySpawn : MonoBehaviour
@@ -50,6 +52,16 @@ public class EnemySpawn : MonoBehaviour
     [Tooltip("Maximum active enemies allowed at once.")]
     [Min(1)] public int maxActiveEnemies = 300;
 
+    [Header("Raid Waves")]
+    [Tooltip("Time between the start of each raid wave.")]
+    [Min(1f)] public float raidInterval = 240f;
+    [Tooltip("How long each raid wave lasts.")]
+    [Min(0.1f)] public float raidDuration = 60f;
+    [Tooltip("Time between raid bursts.")]
+    [Min(0.1f)] public float raidBurstInterval = 3f;
+    [Min(1)] public int raidMinGroupSize = 7;
+    [Min(1)] public int raidMaxGroupSize = 15;
+
     [Header("Pool")]
     [Tooltip("Số enemy được tạo sẵn khi bắt đầu scene.")]
     [Min(0)] public int initialPoolSize = 100;
@@ -68,6 +80,7 @@ public class EnemySpawn : MonoBehaviour
     [Min(1f)] public float miniBossScaleMultiplier = 1.5f;
     [Min(1f)] public float miniBossHpMultiplier = 3f;
     [Min(1f)] public float miniBossDamageMultiplier = 1.5f;
+    [Min(1f)] public float miniBossSpeedMultiplier = 1.35f;
 
     [Header("Organization")]
     public Transform enemyContainer;
@@ -77,6 +90,7 @@ public class EnemySpawn : MonoBehaviour
     [SerializeField] private float elapsedTime;
     [SerializeField] private int currentMinGroupSize;
     [SerializeField] private int currentMaxGroupSize;
+    [SerializeField] private bool isRaidActive;
 
 
     private readonly Dictionary<GameObject, ObjectPool<GameObject>> poolByPrefab =
@@ -85,6 +99,11 @@ public class EnemySpawn : MonoBehaviour
     private readonly Dictionary<GameObject, ObjectPool<GameObject>> poolByEnemy =
         new Dictionary<GameObject, ObjectPool<GameObject>>();
     private Coroutine spawnRoutine;
+    private Coroutine raidRoutine;
+    private float nextRaidTime;
+    private RaidAnnouncementUI raidAnnouncementUI;
+
+    public bool IsRaidActive => isRaidActive;
 
     private void Start()
     {
@@ -97,6 +116,8 @@ public class EnemySpawn : MonoBehaviour
 
         CreatePools();
         PrewarmPool();
+        raidAnnouncementUI = RaidAnnouncementUI.Create(transform);
+        nextRaidTime = raidInterval;
         spawnRoutine = StartCoroutine(SpawnGroups());
     }
 
@@ -118,6 +139,17 @@ public class EnemySpawn : MonoBehaviour
         }
 
         UpdateCurrentGroupSize();
+
+        if (raidRoutine == null && elapsedTime >= nextRaidTime)
+        {
+            do
+            {
+                nextRaidTime += raidInterval;
+            }
+            while (nextRaidTime <= elapsedTime);
+
+            raidRoutine = StartCoroutine(SpawnRaid());
+        }
     }
 
     private void OnDisable()
@@ -127,6 +159,14 @@ public class EnemySpawn : MonoBehaviour
             StopCoroutine(spawnRoutine);
             spawnRoutine = null;
         }
+
+        if (raidRoutine != null)
+        {
+            StopCoroutine(raidRoutine);
+            raidRoutine = null;
+        }
+
+        isRaidActive = false;
     }
 
     private IEnumerator SpawnGroups()
@@ -142,24 +182,62 @@ public class EnemySpawn : MonoBehaviour
 
     private void SpawnGroup()
     {
+        UpdateCurrentGroupSize();
+        SpawnGroup(currentMinGroupSize, currentMaxGroupSize, false);
+    }
+
+    private IEnumerator SpawnRaid()
+    {
+        isRaidActive = true;
+        if (raidAnnouncementUI == null)
+        {
+            raidAnnouncementUI = RaidAnnouncementUI.Create(transform);
+        }
+        raidAnnouncementUI.Show(raidDuration);
+
+        float raidEndTime = elapsedTime + raidDuration;
+
+        while (elapsedTime < raidEndTime)
+        {
+            SpawnGroup(raidMinGroupSize, raidMaxGroupSize, true);
+            yield return new WaitForSeconds(raidBurstInterval);
+        }
+
+        isRaidActive = false;
+        raidRoutine = null;
+    }
+
+    private void SpawnGroup(int minGroupSize, int maxGroupSize, bool scatterAroundPlayer)
+    {
         int availableSlots = maxActiveEnemies - GetActiveEnemyCount();
         if (availableSlots <= 0)
         {
             return;
         }
 
-        UpdateCurrentGroupSize();
-        int groupSize = Random.Range(currentMinGroupSize, currentMaxGroupSize + 1);
+        int groupSize = Random.Range(minGroupSize, maxGroupSize + 1);
         groupSize = Mathf.Min(groupSize, availableSlots);
 
-        Vector3 spawnDirection = GetSpawnDirection();
+        Vector3 spawnDirection = GetSpawnDirection(true);
         float distance = Random.Range(minSpawnRadius, spawnRadius);
         Vector3 groupCenter = playerTransform.position + spawnDirection * distance;
 
         for (int i = 0; i < groupSize; i++)
         {
-            Vector2 offset = Random.insideUnitCircle * groupSpreadRadius;
-            Vector3 spawnPosition = groupCenter + new Vector3(offset.x, 0f, offset.y);
+            Vector3 spawnPosition;
+            if (scatterAroundPlayer)
+            {
+                Vector3 raidDirection = GetSpawnDirection(false);
+                float raidDistance = Random.Range(minSpawnRadius, spawnRadius);
+                spawnPosition = playerTransform.position + raidDirection * raidDistance;
+            }
+            else
+            {
+                Vector2 offset = Random.insideUnitCircle * groupSpreadRadius;
+                spawnPosition = groupCenter + new Vector3(offset.x, 0f, offset.y);
+            }
+
+            spawnPosition = EnforceMinimumSpawnDistance(spawnPosition, spawnDirection);
             spawnPosition.y = GetGroundHeight(spawnPosition);
 
             ObjectPool<GameObject> selectedPool = SelectEnemyPool();
@@ -171,7 +249,8 @@ public class EnemySpawn : MonoBehaviour
                     Random.value < miniBossChance,
                     miniBossScaleMultiplier,
                     miniBossHpMultiplier,
-                    miniBossDamageMultiplier);
+                    miniBossDamageMultiplier,
+                    miniBossSpeedMultiplier);
             }
 
             EnemySpawnEmergence emergence = enemy.GetComponent<EnemySpawnEmergence>();
@@ -190,9 +269,27 @@ public class EnemySpawn : MonoBehaviour
         }
     }
 
-    private Vector3 GetSpawnDirection()
+    private Vector3 EnforceMinimumSpawnDistance(Vector3 spawnPosition, Vector3 fallbackDirection)
     {
-        if (Random.value <= frontSpawnChance)
+        Vector3 playerPosition = playerTransform.position;
+        Vector3 offset = spawnPosition - playerPosition;
+        offset.y = 0f;
+        if (offset.sqrMagnitude >= minSpawnRadius * minSpawnRadius)
+        {
+            return spawnPosition;
+        }
+
+        Vector3 direction = offset.sqrMagnitude > 0.001f
+            ? offset.normalized
+            : fallbackDirection.normalized;
+        spawnPosition.x = playerPosition.x + direction.x * minSpawnRadius;
+        spawnPosition.z = playerPosition.z + direction.z * minSpawnRadius;
+        return spawnPosition;
+    }
+
+    private Vector3 GetSpawnDirection(bool preferFront)
+    {
+        if (preferFront && Random.value <= frontSpawnChance)
         {
             Vector3 playerForward = playerTransform.forward;
             playerForward.y = 0f;
@@ -459,6 +556,11 @@ private float GetGroundHeight(Vector3 position)
         enemyMixRampStart = Mathf.Max(0f, enemyMixRampStart);
         enemyMixTransitionDuration = Mathf.Max(0.1f, enemyMixTransitionDuration);
         maxActiveEnemies = Mathf.Max(1, maxActiveEnemies);
+        raidInterval = Mathf.Max(1f, raidInterval);
+        raidDuration = Mathf.Max(0.1f, raidDuration);
+        raidBurstInterval = Mathf.Max(0.1f, raidBurstInterval);
+        raidMinGroupSize = Mathf.Max(1, raidMinGroupSize);
+        raidMaxGroupSize = Mathf.Max(raidMinGroupSize, raidMaxGroupSize);
         initialPoolSize = Mathf.Clamp(initialPoolSize, 0, 1000);
         emergenceDepth = Mathf.Max(0f, emergenceDepth);
         emergenceDuration = Mathf.Max(0.05f, emergenceDuration);
@@ -467,6 +569,7 @@ private float GetGroundHeight(Vector3 position)
         miniBossScaleMultiplier = Mathf.Max(1f, miniBossScaleMultiplier);
         miniBossHpMultiplier = Mathf.Max(1f, miniBossHpMultiplier);
         miniBossDamageMultiplier = Mathf.Max(1f, miniBossDamageMultiplier);
+        miniBossSpeedMultiplier = Mathf.Max(1f, miniBossSpeedMultiplier);
 
         if (enemyTypes != null)
         {
@@ -619,5 +722,210 @@ internal sealed class EnemySpawnEmergence : MonoBehaviour
         {
             enemyAI.enabled = true;
         }
+    }
+}
+
+/// <summary>
+/// Runtime raid banner. It owns a dedicated overlay canvas so the warning stays
+/// readable regardless of which HUD canvas is active in the current scene.
+/// </summary>
+internal sealed class RaidAnnouncementUI : MonoBehaviour
+{
+    private const float FadeInDuration = 0.75f;
+    private const float HoldDuration = 2.4f;
+    private const float FadeOutDuration = 0.65f;
+
+    private CanvasGroup canvasGroup;
+    private RectTransform bannerRect;
+    private TextMeshProUGUI subtitle;
+    private Coroutine animationRoutine;
+
+    public static RaidAnnouncementUI Create(Transform owner)
+    {
+        RaidAnnouncementUI existing = owner.GetComponentInChildren<RaidAnnouncementUI>(true);
+        if (existing != null)
+        {
+            return existing;
+        }
+
+        GameObject root = new GameObject(
+            "Raid Announcement UI",
+            typeof(RectTransform),
+            typeof(Canvas),
+            typeof(CanvasScaler),
+            typeof(CanvasGroup),
+            typeof(RaidAnnouncementUI));
+        root.transform.SetParent(owner, false);
+        return root.GetComponent<RaidAnnouncementUI>();
+    }
+
+    private void Awake()
+    {
+        Canvas canvas = GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 800;
+
+        CanvasScaler scaler = GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        scaler.matchWidthOrHeight = 0.5f;
+
+        canvasGroup = GetComponent<CanvasGroup>();
+        canvasGroup.alpha = 0f;
+        canvasGroup.interactable = false;
+        canvasGroup.blocksRaycasts = false;
+
+        BuildInterface();
+    }
+
+    public void Show(float raidDuration)
+    {
+        if (animationRoutine != null)
+        {
+            StopCoroutine(animationRoutine);
+        }
+
+        subtitle.text = $"SURVIVE FOR {Mathf.CeilToInt(raidDuration)} SECONDS";
+        animationRoutine = StartCoroutine(Animate());
+    }
+
+    private IEnumerator Animate()
+    {
+        canvasGroup.alpha = 0f;
+        bannerRect.localScale = Vector3.one * 0.9f;
+
+        float elapsed = 0f;
+        while (elapsed < FadeInDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float progress = Mathf.Clamp01(elapsed / FadeInDuration);
+            float eased = Mathf.SmoothStep(0f, 1f, progress);
+            canvasGroup.alpha = eased;
+            bannerRect.localScale = Vector3.one * Mathf.Lerp(0.9f, 1f, eased);
+            yield return null;
+        }
+
+        canvasGroup.alpha = 1f;
+        bannerRect.localScale = Vector3.one;
+        yield return new WaitForSecondsRealtime(HoldDuration);
+
+        elapsed = 0f;
+        while (elapsed < FadeOutDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float progress = Mathf.Clamp01(elapsed / FadeOutDuration);
+            canvasGroup.alpha = 1f - Mathf.SmoothStep(0f, 1f, progress);
+            yield return null;
+        }
+
+        canvasGroup.alpha = 0f;
+        animationRoutine = null;
+    }
+
+    private void BuildInterface()
+    {
+        GameObject bannerObject = new GameObject(
+            "Raid Warning Banner",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(Image));
+        bannerObject.transform.SetParent(transform, false);
+
+        bannerRect = bannerObject.GetComponent<RectTransform>();
+        bannerRect.anchorMin = new Vector2(0.5f, 0.5f);
+        bannerRect.anchorMax = new Vector2(0.5f, 0.5f);
+        bannerRect.pivot = new Vector2(0.5f, 0.5f);
+        bannerRect.anchoredPosition = new Vector2(0f, 90f);
+        bannerRect.sizeDelta = new Vector2(920f, 190f);
+
+        Image background = bannerObject.GetComponent<Image>();
+        background.color = new Color(0.035f, 0.008f, 0.008f, 0.88f);
+        background.raycastTarget = false;
+
+        TextMeshProUGUI title = CreateLabel(
+            "Raid Title",
+            bannerRect,
+            "RAID INCOMING!",
+            68f,
+            new Color(1f, 0.2f, 0.08f, 1f),
+            0.24f);
+        RectTransform titleRect = title.rectTransform;
+        titleRect.anchorMin = new Vector2(0.04f, 0.38f);
+        titleRect.anchorMax = new Vector2(0.96f, 0.96f);
+        titleRect.offsetMin = Vector2.zero;
+        titleRect.offsetMax = Vector2.zero;
+
+        subtitle = CreateLabel(
+            "Raid Subtitle",
+            bannerRect,
+            "SURVIVE FOR 60 SECONDS",
+            30f,
+            Color.white,
+            0.15f);
+        RectTransform subtitleRect = subtitle.rectTransform;
+        subtitleRect.anchorMin = new Vector2(0.04f, 0.08f);
+        subtitleRect.anchorMax = new Vector2(0.96f, 0.43f);
+        subtitleRect.offsetMin = Vector2.zero;
+        subtitleRect.offsetMax = Vector2.zero;
+
+        CreateAccentBar("Top Accent", bannerRect, 1f, -5f);
+        CreateAccentBar("Bottom Accent", bannerRect, 0f, 5f);
+    }
+
+    private static TextMeshProUGUI CreateLabel(
+        string objectName,
+        Transform parent,
+        string message,
+        float fontSize,
+        Color color,
+        float outlineWidth)
+    {
+        GameObject labelObject = new GameObject(
+            objectName,
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(TextMeshProUGUI));
+        labelObject.transform.SetParent(parent, false);
+
+        TextMeshProUGUI label = labelObject.GetComponent<TextMeshProUGUI>();
+        label.text = message;
+        label.fontSize = fontSize;
+        label.fontStyle = FontStyles.Bold;
+        label.color = color;
+        label.alignment = TextAlignmentOptions.Center;
+        label.textWrappingMode = TextWrappingModes.NoWrap;
+        label.enableAutoSizing = true;
+        label.fontSizeMin = Mathf.Max(20f, fontSize * 0.65f);
+        label.fontSizeMax = fontSize;
+        label.outlineColor = Color.black;
+        label.outlineWidth = outlineWidth;
+        label.raycastTarget = false;
+        return label;
+    }
+
+    private static void CreateAccentBar(
+        string objectName,
+        Transform parent,
+        float anchorY,
+        float verticalOffset)
+    {
+        GameObject barObject = new GameObject(
+            objectName,
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(Image));
+        barObject.transform.SetParent(parent, false);
+
+        RectTransform rect = barObject.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0f, anchorY);
+        rect.anchorMax = new Vector2(1f, anchorY);
+        rect.pivot = new Vector2(0.5f, anchorY);
+        rect.anchoredPosition = new Vector2(0f, verticalOffset);
+        rect.sizeDelta = new Vector2(0f, 5f);
+
+        Image image = barObject.GetComponent<Image>();
+        image.color = new Color(1f, 0.12f, 0.035f, 0.95f);
+        image.raycastTarget = false;
     }
 }
