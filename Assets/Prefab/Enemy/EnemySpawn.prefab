@@ -176,7 +176,7 @@ MonoBehaviour:
     lateWeight: 45
   enemyMixRampStart: 60
   enemyMixTransitionDuration: 30
-  minSpawnRadius: 2
+  minSpawnRadius: 3
   spawnRadius: 17
   groupSpreadRadius: 2
   frontSpawnChance: 0.9
@@ -186,9 +186,11 @@ MonoBehaviour:
     m_Bits: 128
   startingMinGroupSize: 1
   startingMaxGroupSize: 2
-  groupSizeStepSeconds: 30
+  groupSizeStepSeconds: 15
   groupSizeIncreasePerStep: 1
   maximumGroupSize: 10
+  openingGroupSizeMultiplier: 0.5
+  openingSpawnDuration: 60
   groupInterval: 2.25
   maxActiveEnemies: 300
   raidInterval: 240

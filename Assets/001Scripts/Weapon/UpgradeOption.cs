@@ -199,6 +199,11 @@ public class UpgradeOption
             case TomeStatType.Damage: return "DAMAGE";
             case TomeStatType.WeaponSize: return "SIZE";
             case TomeStatType.MoveSpeed: return "MOVE SPEED";
+            case TomeStatType.MaxHealth: return "MAX HEALTH";
+            case TomeStatType.Armor: return "ARMOR";
+            case TomeStatType.Cooldown: return "COOLDOWN";
+            case TomeStatType.ProjectileSpeed: return "PROJECTILE SPEED";
+            case TomeStatType.Experience: return "XP GAIN";
             default: return "STAT";
         }
     }

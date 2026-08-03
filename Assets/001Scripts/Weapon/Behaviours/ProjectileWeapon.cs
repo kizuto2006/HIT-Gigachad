@@ -32,6 +32,9 @@ public class ProjectileWeapon : WeaponBehaviour
     [Tooltip("Fallback chest height above the Player root when no chest bone exists.")]
     [Min(0f)] public float fallbackChestHeight = 1.25f;
 
+    [Range(0.5f, 0.95f)] public float targetHeightRatio = 0.72f;
+    [Min(0f)] public float fallbackTargetHeight = 1.2f;
+
     private Transform spawnAnchor;
 
     public override void Attack()
@@ -70,7 +73,7 @@ public class ProjectileWeapon : WeaponBehaviour
                 break;
 
             Vector3 targetCenter =
-                GetTargetCenter(target, out Collider targetCollider);
+                GetTargetAimPoint(target, out Collider targetCollider);
             Vector3 spawnPos = GetSpawnPosition(targetCenter);
             Vector3 baseDirection = targetCenter - spawnPos;
             if (baseDirection.sqrMagnitude <= 0.0001f)
@@ -106,6 +109,12 @@ public class ProjectileWeapon : WeaponBehaviour
             Vector3 targetFormationOffset =
                 formationRight * (slot * targetHalfWidth) +
                 Vector3.up * arc;
+            Vector3 targetTrackingOrigin = targetCollider != null
+                ? targetCollider.bounds.center
+                : target.position;
+            Vector3 homingTargetOffset =
+                targetCenter - targetTrackingOrigin +
+                targetFormationOffset;
             Vector3 projectileSpawnPos = spawnPos + spawnFormationOffset;
             Vector3 direction =
                 targetCenter + targetFormationOffset - projectileSpawnPos;
@@ -135,7 +144,7 @@ public class ProjectileWeapon : WeaponBehaviour
                     target,
                     720f,
                     GetFinalSize(),
-                    targetFormationOffset);
+                    homingTargetOffset);
 
                 if (data.attackEffectPrefab != null)
                 {
@@ -228,7 +237,7 @@ private Vector3 GetSpawnPosition(Vector3 targetPosition)
         return null;
     }
 
-    private static Vector3 GetTargetCenter(
+    private Vector3 GetTargetAimPoint(
         Transform target,
         out Collider targetCollider)
     {
@@ -244,9 +253,15 @@ private Vector3 GetSpawnPosition(Vector3 targetPosition)
             }
         }
 
-        return targetCollider != null
-            ? targetCollider.bounds.center
-            : target.position;
+        if (targetCollider == null)
+            return target.position + Vector3.up * fallbackTargetHeight;
+
+        Bounds bounds = targetCollider.bounds;
+        float heightRatio = Mathf.Clamp(targetHeightRatio, 0.5f, 0.95f);
+        return new Vector3(
+            bounds.center.x,
+            Mathf.Lerp(bounds.min.y, bounds.max.y, heightRatio),
+            bounds.center.z);
     }
 
     private float GetFormationHalfWidth(

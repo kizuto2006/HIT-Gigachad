@@ -1856,6 +1856,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: dcc6a92917946a84485ff266fc0f5be6, type: 2}
   - {fileID: 11400000, guid: 6079bae6ade8a1f4ca9cb6f1f76fa470, type: 2}
   - {fileID: 11400000, guid: e2a4fcc2961ffb041bb8fdbfe27fb23f, type: 2}
+  - {fileID: 11400000, guid: 8b94404063184853beea604582e3630c, type: 2}
+  - {fileID: 11400000, guid: c5a5682d9dfb4b5491020a15256f8350, type: 2}
+  - {fileID: 11400000, guid: f2d27c7879c9400c96d35ce8a736ca87, type: 2}
+  - {fileID: 11400000, guid: 139f11f8b4d24b8fb7c3a5e581561b07, type: 2}
+  - {fileID: 11400000, guid: 73e41166a97942799ecf476940029610, type: 2}
   optionsPerLevel: 3
   pauseGameWhileChoosing: 1
 --- !u!114 &6151394319823545744

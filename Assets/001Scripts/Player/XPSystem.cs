@@ -12,6 +12,7 @@ public class XPSystem : MonoBehaviour
     [SerializeField] private int currentXP;
     [Tooltip("Level hiện tại.")]
     [SerializeField] private int currentLevel = 1;
+    private float fractionalXP;
 
     [Header("── Scaling ──")]
     [Tooltip("XP cơ bản để level up level 1.")]
@@ -72,6 +73,19 @@ public class XPSystem : MonoBehaviour
             OnLevelUp?.Invoke(currentLevel);
             OnXPChanged?.Invoke(currentXP, XPToNextLevel);
         }
+    }
+
+    public void AddXP(float amount)
+    {
+        if (amount <= 0f)
+            return;
+
+        float totalXP = amount + fractionalXP;
+        int wholeXP = Mathf.FloorToInt(totalXP);
+        fractionalXP = totalXP - wholeXP;
+
+        if (wholeXP > 0)
+            AddXP(wholeXP);
     }
 
     private void OnValidate()

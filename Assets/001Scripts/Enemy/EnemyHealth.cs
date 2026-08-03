@@ -271,12 +271,37 @@ public void TakeDamage(float raw, bool isEliteDmg = false)
 
         currentHp -= finalDmg;
         StartHitFlash();
+        DamageNumberPopup.Show(finalDmg, GetDamageNumberPosition());
 
         if (currentHp <= 0f)
         {
             currentHp = 0f;
             isDying = true;
         }
+    }
+
+    private Vector3 GetDamageNumberPosition()
+    {
+        if (rootCollider != null)
+        {
+            Bounds bounds = rootCollider.bounds;
+            return bounds.center + Vector3.up * (bounds.extents.y + 0.2f);
+        }
+
+        if (cachedRenderers != null)
+        {
+            for (int i = 0; i < cachedRenderers.Length; i++)
+            {
+                Renderer targetRenderer = cachedRenderers[i];
+                if (targetRenderer == null || !targetRenderer.enabled)
+                    continue;
+
+                Bounds bounds = targetRenderer.bounds;
+                return bounds.center + Vector3.up * (bounds.extents.y + 0.2f);
+            }
+        }
+
+        return transform.position + Vector3.up;
     }
 
     private void StartHitFlash()

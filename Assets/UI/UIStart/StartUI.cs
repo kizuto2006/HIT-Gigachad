@@ -15,8 +15,11 @@ public class StartUI : MonoBehaviour
     [SerializeField] private Button btnSettings;
     [SerializeField] private Button btnExit;
 
+    private GameObject menuFrame;
+
     private void Awake()
     {
+        menuFrame = GameObject.Find("GigabonkMenuPanel");
         
         if(btnPlay != null)
         {
@@ -44,6 +47,13 @@ public class StartUI : MonoBehaviour
 
     public void OnClickButtonPlay()
     {
+        var menuFlow = FindFirstObjectByType<GigabonkMenuFlow>();
+        if(menuFlow != null)
+        {
+            menuFlow.BeginPlay();
+            return;
+        }
+
         SetActiveStartPanel(false);
         UIController.Instance.SelectCharacterUI.SetActiveCharacter(true);
     }
@@ -53,11 +63,15 @@ public class StartUI : MonoBehaviour
     }
     public void OnClickButtonSettings()
     {
+        SetActiveStartPanel(false);
         UIController.Instance.UISettings.gameObject.SetActive(true);
     }
     public void SetActiveStartPanel(bool isActive)
     {
-        if(startPanel == null) return;
-        startPanel.SetActive(isActive);
+        if(startPanel != null)
+            startPanel.SetActive(isActive);
+
+        if(menuFrame != null)
+            menuFrame.SetActive(isActive);
     }
 }

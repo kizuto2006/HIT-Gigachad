@@ -98,9 +98,15 @@ public class PlayerTomeInventory : MonoBehaviour
         if (playerStats == null)
             return;
 
+        float previousMaxHealth = playerStats.FinalHp;
         float damageBonus = 0f;
         float sizeBonus = 0f;
         float moveSpeedBonus = 0f;
+        float maxHealthBonus = 0f;
+        float armorBonus = 0f;
+        float cooldownBonus = 0f;
+        float projectileSpeedBonus = 0f;
+        float experienceBonus = 0f;
 
         for (int i = ownedTomes.Count - 1; i >= 0; i--)
         {
@@ -125,10 +131,45 @@ public class PlayerTomeInventory : MonoBehaviour
                 case TomeStatType.MoveSpeed:
                     moveSpeedBonus += bonus;
                     break;
+                case TomeStatType.MaxHealth:
+                    maxHealthBonus += bonus;
+                    break;
+                case TomeStatType.Armor:
+                    armorBonus += bonus;
+                    break;
+                case TomeStatType.Cooldown:
+                    cooldownBonus += bonus;
+                    break;
+                case TomeStatType.ProjectileSpeed:
+                    projectileSpeedBonus += bonus;
+                    break;
+                case TomeStatType.Experience:
+                    experienceBonus += bonus;
+                    break;
             }
         }
 
-        playerStats.SetRuntimeTomeBonuses(damageBonus, sizeBonus, moveSpeedBonus);
+        playerStats.SetRuntimeTomeBonuses(
+            damageBonus,
+            sizeBonus,
+            moveSpeedBonus,
+            maxHealthBonus,
+            armorBonus,
+            cooldownBonus,
+            projectileSpeedBonus,
+            experienceBonus);
+
+        SyncCurrentHealth(previousMaxHealth, playerStats.FinalHp);
+    }
+
+    private void SyncCurrentHealth(float previousMaxHealth, float newMaxHealth)
+    {
+        PlayerHealth health = GetComponentInParent<PlayerHealth>();
+        if (health == null || health.currentHp <= 0f)
+            return;
+
+        float gainedMaxHealth = Mathf.Max(0f, newMaxHealth - previousMaxHealth);
+        health.currentHp = Mathf.Min(newMaxHealth, health.currentHp + gainedMaxHealth);
     }
 
     private TomeLevelState FindState(TomeData tome)

@@ -254,7 +254,7 @@ public class XPGem : MonoBehaviour
         if (xpSystem != null)
         {
             float multiplier = playerStats != null ? playerStats.FinalExperienceMultiplier : 1f;
-            xpSystem.AddXP(Mathf.Max(1, Mathf.RoundToInt(xpAmount * multiplier)));
+            xpSystem.AddXP(Mathf.Max(0f, xpAmount * multiplier));
         }
 
         // TODO: Thêm VFX/SFX thu gem ở đây

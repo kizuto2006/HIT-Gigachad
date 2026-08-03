@@ -6,8 +6,8 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/UI/Start.unity
-    guid: 64799661ac3bcb547b80f941911ccfae
+    path: Assets/Scenes/GigabonkMenu.unity
+    guid: 4d01e6e5d709c9a4aae6b7a8a5c95cfa
   - enabled: 1
     path: Assets/Scenes/DesertArena.unity
     guid: cd5a6af815e98b942af99c53f5b1845d

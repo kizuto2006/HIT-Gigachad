@@ -8,6 +8,8 @@ using UnityEngine.UI;
 
 public class EnemySpawn : MonoBehaviour
 {
+    private const float MinimumAllowedSpawnRadius = 3f;
+
     [System.Serializable]
     public sealed class EnemySpawnType
     {
@@ -28,7 +30,7 @@ public class EnemySpawn : MonoBehaviour
     [Min(0.1f)] public float enemyMixTransitionDuration = 30f;
 
     [Header("Spawn Area")]
-    [Min(0f)] public float minSpawnRadius = 15f;
+    [Min(MinimumAllowedSpawnRadius)] public float minSpawnRadius = MinimumAllowedSpawnRadius;
     [Min(0.1f)] public float spawnRadius = 25f;
     [Tooltip("Bán kính rải quái quanh tâm của một đàn.")]
     [Min(0f)] public float groupSpreadRadius = 2.5f;
@@ -39,12 +41,16 @@ public class EnemySpawn : MonoBehaviour
     [Tooltip("Only colliders on these layers can be used as spawn ground.")]
     [SerializeField] private LayerMask groundMask = 1 << 7;
 
-    [Header("Group Size Every 30 Seconds")]
+    [Header("Normal Group Size Progression")]
     [Min(1)] public int startingMinGroupSize = 1;
     [Min(1)] public int startingMaxGroupSize = 2;
-    [Min(0.1f)] public float groupSizeStepSeconds = 30f;
+    [Min(0.1f)] public float groupSizeStepSeconds = 15f;
     [Min(0)] public int groupSizeIncreasePerStep = 1;
     [Min(1)] public int maximumGroupSize = 10;
+    [Tooltip("Normal spawn groups are reduced by this multiplier during the opening period. Raid group sizes are unaffected.")]
+    [Range(0.01f, 1f)] public float openingGroupSizeMultiplier = 0.5f;
+    [Tooltip("Duration of the reduced normal spawn groups. Elite enemies cannot appear during this period.")]
+    [Min(0f)] public float openingSpawnDuration = 60f;
 
     [Header("Spawn Timing")]
     [Tooltip("Time between enemy groups.")]
@@ -246,7 +252,7 @@ public class EnemySpawn : MonoBehaviour
             if (miniBoss != null)
             {
                 miniBoss.Configure(
-                    Random.value < miniBossChance,
+                    elapsedTime >= openingSpawnDuration && Random.value < miniBossChance,
                     miniBossScaleMultiplier,
                     miniBossHpMultiplier,
                     miniBossDamageMultiplier,
@@ -493,6 +499,13 @@ private GameObject CreatePooledEnemy(GameObject prefab, ObjectPool<GameObject> o
         int increase = step * Mathf.Max(0, groupSizeIncreasePerStep);
         currentMinGroupSize = Mathf.Min(startingMinGroupSize + increase, maximumGroupSize);
         currentMaxGroupSize = Mathf.Min(startingMaxGroupSize + increase, maximumGroupSize);
+
+        if (elapsedTime < openingSpawnDuration)
+        {
+            currentMinGroupSize = Mathf.Max(1, Mathf.CeilToInt(currentMinGroupSize * openingGroupSizeMultiplier));
+            currentMaxGroupSize = Mathf.Max(1, Mathf.CeilToInt(currentMaxGroupSize * openingGroupSizeMultiplier));
+        }
+
         currentMaxGroupSize = Mathf.Max(currentMinGroupSize, currentMaxGroupSize);
     }
 
@@ -543,7 +556,7 @@ private float GetGroundHeight(Vector3 position)
 
     private void OnValidate()
     {
-        minSpawnRadius = Mathf.Max(0f, minSpawnRadius);
+        minSpawnRadius = Mathf.Max(MinimumAllowedSpawnRadius, minSpawnRadius);
         spawnRadius = Mathf.Max(minSpawnRadius, spawnRadius);
         groupSpreadRadius = Mathf.Max(0f, groupSpreadRadius);
         frontSpawnChance = Mathf.Clamp01(frontSpawnChance);
@@ -552,6 +565,8 @@ private float GetGroundHeight(Vector3 position)
         groupSizeStepSeconds = Mathf.Max(0.1f, groupSizeStepSeconds);
         groupSizeIncreasePerStep = Mathf.Max(0, groupSizeIncreasePerStep);
         maximumGroupSize = Mathf.Max(startingMaxGroupSize, maximumGroupSize);
+        openingGroupSizeMultiplier = Mathf.Clamp(openingGroupSizeMultiplier, 0.01f, 1f);
+        openingSpawnDuration = Mathf.Max(0f, openingSpawnDuration);
         groupInterval = Mathf.Max(0.05f, groupInterval);
         enemyMixRampStart = Mathf.Max(0f, enemyMixRampStart);
         enemyMixTransitionDuration = Mathf.Max(0.1f, enemyMixTransitionDuration);

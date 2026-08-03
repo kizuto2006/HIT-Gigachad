@@ -32,6 +32,10 @@ public class SelectMapUI : MonoBehaviour
 
     public void OnClickConfirm()
     {
+        var menuFlow = FindFirstObjectByType<GigabonkMenuFlow>();
+        if(menuFlow != null)
+            menuFlow.ExitMenu();
+
         SceneManager.LoadScene("DesertArena");
     }
 

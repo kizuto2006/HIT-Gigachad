@@ -4,7 +4,12 @@ public enum TomeStatType
 {
     Damage,
     WeaponSize,
-    MoveSpeed
+    MoveSpeed,
+    MaxHealth,
+    Armor,
+    Cooldown,
+    ProjectileSpeed,
+    Experience
 }
 
 [CreateAssetMenu(fileName = "TomeData", menuName = "Data/Tome Data")]

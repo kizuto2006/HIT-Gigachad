@@ -14,7 +14,7 @@ public sealed class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
 
     [Header("Scenes")]
-    [SerializeField] private string startSceneName = "Start";
+    [SerializeField] private string startSceneName = "GigabonkMenu";
     [SerializeField] private string desertSceneName = "DesertArena";
 
     [Header("Game Over")]
@@ -191,7 +191,7 @@ private void DetachFromParentForPersistence()
             }
 
             if (buttons.Length == 0)
-                Debug.LogWarning("[GameManager] Dead Canvas has no Button to return to Start.");
+                Debug.LogWarning("[GameManager] Dead Canvas has no Button to return to the menu.");
         }
     }
 

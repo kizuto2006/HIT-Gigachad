@@ -213,7 +213,7 @@ public class WeaponData : ScriptableObject
         if (maxAttackSpeedMultiplier > 0f)
             attackSpeedMultiplier = Mathf.Min(attackSpeedMultiplier, maxAttackSpeedMultiplier);
         float sizeMultiplier = playerStats != null ? playerStats.FinalWeaponSizeMultiplier : 1f;
-        float projectileSpeedMultiplier = playerStats != null ? 1f + playerStats.bonusProjSpeedPct : 1f;
+        float projectileSpeedMultiplier = playerStats != null ? playerStats.FinalProjectileSpeedMultiplier : 1f;
         float knockbackMultiplier = playerStats != null ? playerStats.FinalKnockbackMultiplier : 1f;
 
         int upgradedProjectileCount = projectileCount + levelProjectileCountBonus;
