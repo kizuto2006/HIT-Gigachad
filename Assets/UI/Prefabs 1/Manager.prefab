@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8a9a5bb7e8c4b7e9d5a1f2c3e4d6a7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
-  startSceneName: Start
+  startSceneName: GigabonkMenu
   desertSceneName: DesertArena
   deadCanvasPrefab: {fileID: 4704846109653090824, guid: 36e4e73349eb0324db14de384bb53940, type: 3}
 --- !u!1 &3352700181544071432
