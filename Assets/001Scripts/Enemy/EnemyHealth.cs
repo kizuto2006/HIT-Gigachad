@@ -270,6 +270,7 @@ public void TakeDamage(float raw, bool isEliteDmg = false)
             return;
 
         currentHp -= finalDmg;
+        AudioManager.Instance?.PlayEnemyHit();
         StartHitFlash();
         DamageNumberPopup.Show(finalDmg, GetDamageNumberPosition());
 

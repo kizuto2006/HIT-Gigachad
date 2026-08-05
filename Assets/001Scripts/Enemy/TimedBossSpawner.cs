@@ -12,6 +12,7 @@ public sealed class TimedBossSpawner : MonoBehaviour
 
     [Header("Timing")]
     [SerializeField, Min(0f)] private float spawnDelay = 180f;
+    [SerializeField, Min(0f)] private float warningLeadTime = 5f;
 
     [Header("Placement")]
     [SerializeField, Min(1f)] private float spawnDistance = 18f;
@@ -25,6 +26,7 @@ public sealed class TimedBossSpawner : MonoBehaviour
 
     private float elapsedTime;
     private bool hasSpawned;
+    private bool hasPlayedWarning;
 
     public GameObject SpawnedBoss { get; private set; }
 
@@ -41,6 +43,13 @@ public sealed class TimedBossSpawner : MonoBehaviour
         }
 
         elapsedTime += Time.deltaTime;
+        float warningTime = Mathf.Max(0f, spawnDelay - warningLeadTime);
+        if (!hasPlayedWarning && elapsedTime >= warningTime)
+        {
+            hasPlayedWarning = true;
+            AudioManager.Instance?.PlayBossWarning();
+        }
+
         if (elapsedTime >= spawnDelay)
         {
             SpawnBoss();
@@ -88,6 +97,7 @@ public sealed class TimedBossSpawner : MonoBehaviour
 
         emergence.Prepare(spawnPosition, emergenceDepth, emergenceDuration, 0f);
         hasSpawned = true;
+        AudioManager.Instance?.PlayBossSpawn();
 
         Debug.Log($"[TimedBossSpawner] Stone Golem xuất hiện tại {elapsedTime:F1}s.", this);
     }
@@ -140,6 +150,7 @@ public sealed class TimedBossSpawner : MonoBehaviour
     private void OnValidate()
     {
         spawnDelay = Mathf.Max(0f, spawnDelay);
+        warningLeadTime = Mathf.Max(0f, warningLeadTime);
         spawnDistance = Mathf.Max(1f, spawnDistance);
         groundProbeHeight = Mathf.Max(1f, groundProbeHeight);
         groundProbeDistance = Mathf.Max(1f, groundProbeDistance);

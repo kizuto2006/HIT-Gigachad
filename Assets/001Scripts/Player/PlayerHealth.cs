@@ -59,6 +59,7 @@ public class PlayerHealth : MonoBehaviour
         if (raw > 0f)
         {
             currentHp -= raw;
+            AudioManager.Instance?.PlayPlayerHurt();
             TriggerHitFlash();
         }
 

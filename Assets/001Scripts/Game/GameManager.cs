@@ -149,6 +149,7 @@ private void DetachFromParentForPersistence()
         }
 
         deadCanvasInstance.SetActive(true);
+        UIButtonSfx.AttachTo(deadCanvasInstance);
         if (deadCanvasInstance.transform is RectTransform canvasTransform)
             canvasTransform.localScale = Vector3.one;
 

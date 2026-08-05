@@ -89,6 +89,7 @@ public class PlayerSimpleMovement : MonoBehaviour
     private static readonly int IsFallingHash = Animator.StringToHash("IsFalling");
     private static readonly int VelocityYHash = Animator.StringToHash("VelocityY");
     private static readonly int JumpHash = Animator.StringToHash("Jump");
+    private const float MinimumAirTimeForLandingSound = 0.1f;
 
     private Transform cameraTransform;
     private Animator animator;
@@ -276,6 +277,11 @@ public class PlayerSimpleMovement : MonoBehaviour
                 lastCompletedAirTime = airTimeCounter;
                 timeSinceLanded = 0f;
                 bunnyHopConsumedForLanding = false;
+
+                if (lastCompletedAirTime >= MinimumAirTimeForLandingSound)
+                {
+                    AudioManager.Instance?.PlayLand();
+                }
             }
             else
             {
@@ -467,6 +473,8 @@ public class PlayerSimpleMovement : MonoBehaviour
             bunnyHopConsumedForLanding = true;
         }
         isGrounded = false;
+
+        AudioManager.Instance?.PlayJump();
 
         if (animator != null && hasJumpParam)
         {
