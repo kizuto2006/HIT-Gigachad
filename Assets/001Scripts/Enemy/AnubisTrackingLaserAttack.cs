@@ -18,12 +18,12 @@ public sealed class AnubisTrackingLaserAttack : MonoBehaviour
     [SerializeField] private EnemyAI enemyAI;
 
     [Header("Timing")]
-    [SerializeField, Min(0f)] private float telegraphDuration = 0.85f;
+    [SerializeField, Min(0f)] private float telegraphDuration = 1f;
     [SerializeField, Min(0.1f)] private float activeDuration = 2.5f;
     [SerializeField, Min(0f)] private float cooldown = 6f;
 
     [Header("Tracking")]
-    [SerializeField, Min(0f)] private float trackingDegreesPerSecond = 35f;
+    [SerializeField, Min(0f)] private float trackingDegreesPerSecond = 14.5f;
     [SerializeField, Min(0.5f)] private float range = 35f;
     [SerializeField] private LayerMask hitMask = ~0;
 
@@ -101,6 +101,7 @@ public sealed class AnubisTrackingLaserAttack : MonoBehaviour
                 yield break;
             }
 
+            TrackTarget();
             UpdateBeam(false);
             elapsed += Time.deltaTime;
             yield return null;

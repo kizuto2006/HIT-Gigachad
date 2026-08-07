@@ -894,10 +894,10 @@ MonoBehaviour:
   laserOrigin: {fileID: 6679348475275583299}
   beamRenderer: {fileID: 6070388480044848737}
   enemyAI: {fileID: 646024210310422692}
-  telegraphDuration: 0.85
+  telegraphDuration: 1
   activeDuration: 2.5
   cooldown: 6
-  trackingDegreesPerSecond: 35
+  trackingDegreesPerSecond: 14.5
   range: 35
   hitMask:
     serializedVersion: 2
@@ -935,12 +935,13 @@ MonoBehaviour:
   laserCount: 8
   clockwise: 1
   rotationSpeed: 45
+  ringPitchDegrees: 5.5
   beamHeightOffset: 0.25
   range: 35
   hitMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  telegraphDuration: 0.75
+  telegraphDuration: 1
   activeDuration: 4
   cooldown: 7
   damage: 7

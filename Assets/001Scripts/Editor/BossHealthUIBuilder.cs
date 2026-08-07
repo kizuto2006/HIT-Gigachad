@@ -12,7 +12,8 @@ internal static class BossHealthUIBuilder
     private const string DesertScenePath = "Assets/Scenes/DesertArena.unity";
     private const string DesertRootName = "BossHealthUI_Desert";
     private const string EncounterRootName = "StoneGolemBossEncounter";
-    private const string BossPrefabPath = "Assets/Prefab/Enemy_StoneGolemBoss.prefab";
+    private const string StoneGolemBossPrefabPath = "Assets/Prefab/Scenes/Enemy_StoneGolemBoss.prefab";
+    private const string AnubisBossPrefabPath = "Assets/Prefab/Anubis/Anubis_Boss.prefab";
     private const string DisplayFontPath = "Assets/UI/Fonts/SVN-Determination Sans SDF.asset";
 
     [MenuItem("Tools/UI/Create Boss Health Bar In SampleScene")]
@@ -103,11 +104,12 @@ internal static class BossHealthUIBuilder
         }
 
         GameObject hudCanvas = GameObject.Find("HUD_Canvas");
-        GameObject bossPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BossPrefabPath);
+        GameObject stoneGolemPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(StoneGolemBossPrefabPath);
+        GameObject anubisPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(AnubisBossPrefabPath);
         TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(DisplayFontPath);
         GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
 
-        if (hudCanvas == null || bossPrefab == null || playerObject == null)
+        if (hudCanvas == null || stoneGolemPrefab == null || anubisPrefab == null || playerObject == null)
         {
             Debug.LogError("[BossHealthUIBuilder] DesertArena thiếu HUD_Canvas, boss prefab hoặc Player.");
             return;
@@ -118,7 +120,11 @@ internal static class BossHealthUIBuilder
 
         GameObject encounter = new GameObject(EncounterRootName, typeof(TimedBossSpawner));
         encounter.GetComponent<TimedBossSpawner>().Configure(
-            bossPrefab,
+            new[]
+            {
+                stoneGolemPrefab,
+                anubisPrefab
+            },
             playerObject.transform,
             180f,
             18f);

@@ -22,12 +22,13 @@ public sealed class AnubisBlueLaserRingAttack : MonoBehaviour
     [SerializeField, Range(1, 32)] private int laserCount = 8;
     [SerializeField] private bool clockwise = true;
     [SerializeField, Min(0f)] private float rotationSpeed = 45f;
+    [SerializeField, Range(0f, 45f)] private float ringPitchDegrees = 5.5f;
     [SerializeField] private float beamHeightOffset = 0.25f;
     [SerializeField, Min(0.5f)] private float range = 35f;
     [SerializeField] private LayerMask hitMask = ~0;
 
     [Header("Timing")]
-    [SerializeField, Min(0f)] private float telegraphDuration = 0.75f;
+    [SerializeField, Min(0f)] private float telegraphDuration = 1f;
     [SerializeField, Min(0.1f)] private float activeDuration = 4f;
     [SerializeField, Min(0f)] private float cooldown = 7f;
 
@@ -89,7 +90,10 @@ public sealed class AnubisBlueLaserRingAttack : MonoBehaviour
         float angle = currentBaseAngle + index * AngleStep;
         Vector3 basis = Quaternion.Euler(0f, angle, 0f) * transform.forward;
         basis.y = 0f;
-        return basis.normalized;
+        basis.Normalize();
+
+        float pitchRadians = ringPitchDegrees * Mathf.Deg2Rad;
+        return (basis * Mathf.Cos(pitchRadians) + Vector3.down * Mathf.Sin(pitchRadians)).normalized;
     }
 
     public float GetBeamLength(int index)

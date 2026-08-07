@@ -7,7 +7,7 @@ using UnityEngine;
 public sealed class TimedBossSpawner : MonoBehaviour
 {
     [Header("Boss")]
-    [SerializeField] private GameObject bossPrefab;
+    [SerializeField] private GameObject[] bossPrefabs;
     [SerializeField] private Transform player;
 
     [Header("Timing")]
@@ -58,7 +58,16 @@ public sealed class TimedBossSpawner : MonoBehaviour
 
     public void Configure(GameObject prefab, Transform playerTransform, float delaySeconds, float distance)
     {
-        bossPrefab = prefab;
+        Configure(
+            prefab != null ? new[] { prefab } : null,
+            playerTransform,
+            delaySeconds,
+            distance);
+    }
+
+    public void Configure(GameObject[] prefabs, Transform playerTransform, float delaySeconds, float distance)
+    {
+        bossPrefabs = prefabs;
         player = playerTransform;
         spawnDelay = Mathf.Max(0f, delaySeconds);
         spawnDistance = Mathf.Max(1f, distance);
@@ -73,9 +82,22 @@ public sealed class TimedBossSpawner : MonoBehaviour
         }
 
         ResolvePlayer();
-        if (bossPrefab == null || player == null)
+        if (bossPrefabs == null || bossPrefabs.Length == 0)
         {
-            Debug.LogError("[TimedBossSpawner] Boss prefab hoặc Player chưa được gán.", this);
+            Debug.LogError("[TimedBossSpawner] Danh sách boss chưa được cấu hình.", this);
+            return;
+        }
+
+        if (player == null)
+        {
+            Debug.LogError("[TimedBossSpawner] Player chưa được gán hoặc không tìm thấy.", this);
+            return;
+        }
+
+        GameObject selectedBossPrefab = bossPrefabs[Random.Range(0, bossPrefabs.Length)];
+        if (selectedBossPrefab == null)
+        {
+            Debug.LogError("[TimedBossSpawner] Boss được chọn là null. Kiểm tra danh sách boss.", this);
             return;
         }
 
@@ -86,8 +108,8 @@ public sealed class TimedBossSpawner : MonoBehaviour
             ? Quaternion.LookRotation(lookDirection.normalized, Vector3.up)
             : Quaternion.identity;
 
-        SpawnedBoss = Instantiate(bossPrefab, spawnPosition, rotation);
-        SpawnedBoss.name = "StoneGolemBoss";
+        SpawnedBoss = Instantiate(selectedBossPrefab, spawnPosition, rotation);
+        SpawnedBoss.name = selectedBossPrefab.name;
 
         EnemySpawnEmergence emergence = SpawnedBoss.GetComponent<EnemySpawnEmergence>();
         if (emergence == null)
@@ -99,7 +121,7 @@ public sealed class TimedBossSpawner : MonoBehaviour
         hasSpawned = true;
         AudioManager.Instance?.PlayBossSpawn();
 
-        Debug.Log($"[TimedBossSpawner] Stone Golem xuất hiện tại {elapsedTime:F1}s.", this);
+        Debug.Log($"[TimedBossSpawner] {selectedBossPrefab.name} xuất hiện tại {elapsedTime:F1}s.", this);
     }
 
     private void ResolvePlayer()
