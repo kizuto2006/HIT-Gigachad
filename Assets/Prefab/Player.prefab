@@ -1497,6 +1497,7 @@ GameObject:
   - component: {fileID: 8927827561009508240}
   - component: {fileID: 5240835273377066106}
   - component: {fileID: 6151394319823545744}
+  - component: {fileID: 4811303844981750897}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -1877,6 +1878,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MegabonkSteppedAnimator
   framesPerSecond: 12
   targetAnimator: {fileID: 0}
+--- !u!114 &4811303844981750897
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6101822297866704205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a41fc111d6785966fa146dc06bda356f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerCurrency
+  startingGold: 0
 --- !u!1 &6227649464860532485
 GameObject:
   m_ObjectHideFlags: 0

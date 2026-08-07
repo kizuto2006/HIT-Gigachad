@@ -160,6 +160,34 @@ public class UpgradeManager : MonoBehaviour
         return new List<UpgradeOption>(currentOptions);
     }
 
+    public bool CanRequestChestReward(int optionCount)
+    {
+        if (isShowingUpgrade || optionCount < 1 || OnShowUpgradeUI == null)
+            return false;
+
+        BuildCurrentOptions(optionCount);
+        bool hasOptions = currentOptions.Count > 0;
+        currentOptions.Clear();
+        return hasOptions;
+    }
+
+    public bool RequestChestReward(int optionCount, string title)
+    {
+        if (isShowingUpgrade || optionCount < 1 || OnShowUpgradeUI == null)
+            return false;
+
+        BuildCurrentOptions(optionCount);
+        if (currentOptions.Count == 0)
+            return false;
+
+        isShowingUpgrade = true;
+        if (pauseGameWhileChoosing)
+            Time.timeScale = 0f;
+
+        OnShowUpgradeUI.Invoke(new List<UpgradeOption>(currentOptions));
+        return true;
+    }
+
     private void FinishCurrentChoice()
     {
         OnHideUpgradeUI?.Invoke();
@@ -177,6 +205,11 @@ public class UpgradeManager : MonoBehaviour
     }
 
     private void BuildCurrentOptions()
+    {
+        BuildCurrentOptions(optionsPerLevel);
+    }
+
+    private void BuildCurrentOptions(int optionCount)
     {
         currentOptions.Clear();
         WeaponInventory inventory = weaponController != null ? weaponController.Inventory : null;
@@ -217,8 +250,9 @@ public class UpgradeManager : MonoBehaviour
         }
 
         Shuffle(currentOptions);
-        if (currentOptions.Count > optionsPerLevel)
-            currentOptions.RemoveRange(optionsPerLevel, currentOptions.Count - optionsPerLevel);
+        int clampedOptionCount = Mathf.Max(1, optionCount);
+        if (currentOptions.Count > clampedOptionCount)
+            currentOptions.RemoveRange(clampedOptionCount, currentOptions.Count - clampedOptionCount);
     }
 
     private static void Shuffle<T>(IList<T> list)
