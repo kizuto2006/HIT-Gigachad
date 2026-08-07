@@ -65,6 +65,7 @@ GameObject:
   - component: {fileID: 7268605862217860559}
   - component: {fileID: 3744292831512283359}
   - component: {fileID: 7143081325565156360}
+  - component: {fileID: 3279081022718101899}
   m_Layer: 0
   m_Name: Chest_Basic
   m_TagString: Untagged
@@ -146,6 +147,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ChestAnimator
   animator: {fileID: 3744292831512283359}
+--- !u!114 &3279081022718101899
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2093890611125973225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cbbab3be79b23b54e9c07a6e56237dfc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ChestInteraction
+  chestAnimator: {fileID: 0}
+  rewardSpawnPoint: {fileID: 0}
+  idleVfxPrefab: {fileID: 194664, guid: f1a0b0b65fc0171498aaabf313446e83, type: 3}
+  openVfxPrefab: {fileID: 1081286048526535, guid: 4e1ae77fe346ade4b8cf5e13e684ad45, type: 3}
+  openCost: 35
+  interactionRadius: 3.2
+  rewardDelay: 0.55
+  rewardOptionCount: 3
+  coinIcon: {fileID: 0}
+  promptLocalPosition: {x: 0, y: 2.35, z: 0}
 --- !u!1 &3196715147732233839
 GameObject:
   m_ObjectHideFlags: 0
