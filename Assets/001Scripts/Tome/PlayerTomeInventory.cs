@@ -7,21 +7,42 @@ public sealed class TomeLevelState
 {
     public TomeData tome;
     [Min(1)] public int level = 1;
+    [Min(0f)] public float extraBonus;
+
 }
 
 public class PlayerTomeInventory : MonoBehaviour
 {
+
+    private const int MaximumSlotCount = 4;
+    private int baseSlotCount;
+    private bool slotCapacityInitialized;
     [SerializeField, Min(1)] private int maxSlots = 2;
     [SerializeField] private PlayerBaseStats playerStats;
     [SerializeField] private List<TomeLevelState> ownedTomes = new List<TomeLevelState>();
 
     public IReadOnlyList<TomeLevelState> OwnedTomes => ownedTomes;
-    public int MaxSlots => maxSlots;
-    public bool IsFull => ownedTomes.Count >= maxSlots;
+    public int MaxSlots
+    {
+        get
+        {
+            EnsureSlotCapacity();
+            return maxSlots;
+        }
+    }
+    public bool IsFull
+    {
+        get
+        {
+            EnsureSlotCapacity();
+            return ownedTomes.Count >= maxSlots;
+        }
+    }
     public event Action TomesChanged;
 
     private void Awake()
     {
+        EnsureSlotCapacity();
         if (playerStats == null)
         {
             PlayerHealth health = GetComponent<PlayerHealth>();
@@ -34,7 +55,7 @@ public class PlayerTomeInventory : MonoBehaviour
 
     private void OnValidate()
     {
-        maxSlots = Mathf.Max(1, maxSlots);
+        maxSlots = Mathf.Clamp(maxSlots, 1, MaximumSlotCount);
 
         for (int i = 0; i < ownedTomes.Count; i++)
         {
@@ -56,25 +77,35 @@ public class PlayerTomeInventory : MonoBehaviour
             playerStats.ClearRuntimeTomeBonuses();
     }
 
-    public bool AddOrUpgradeTome(TomeData tome)
+    public bool AddOrUpgradeTome(TomeData tome, float rarityMultiplier = 1f)
     {
         if (tome == null || playerStats == null)
             return false;
 
+        float safeMultiplier = Mathf.Max(1f, rarityMultiplier);
         TomeLevelState state = FindState(tome);
         if (state == null)
         {
             if (IsFull)
                 return false;
 
-            ownedTomes.Add(new TomeLevelState { tome = tome, level = 1 });
+            float baseBonus = tome.GetBonusAtLevel(1);
+            ownedTomes.Add(new TomeLevelState
+            {
+                tome = tome,
+                level = 1,
+                extraBonus = baseBonus * (safeMultiplier - 1f)
+            });
         }
         else
         {
             if (state.level >= tome.maxLevel)
                 return false;
 
+            float previousBaseBonus = tome.GetBonusAtLevel(state.level);
             state.level++;
+            float nextBaseBonus = tome.GetBonusAtLevel(state.level);
+            state.extraBonus += (nextBaseBonus - previousBaseBonus) * (safeMultiplier - 1f);
         }
 
         RecalculatePlayerStats();
@@ -118,8 +149,7 @@ public class PlayerTomeInventory : MonoBehaviour
             }
 
             state.level = Mathf.Clamp(state.level, 1, state.tome.maxLevel);
-            float bonus = state.tome.GetBonusAtLevel(state.level);
-
+            float bonus = state.tome.GetBonusAtLevel(state.level) + state.extraBonus;
             switch (state.tome.statType)
             {
                 case TomeStatType.Damage:
@@ -169,7 +199,7 @@ public class PlayerTomeInventory : MonoBehaviour
             return;
 
         float gainedMaxHealth = Mathf.Max(0f, newMaxHealth - previousMaxHealth);
-        health.currentHp = Mathf.Min(newMaxHealth, health.currentHp + gainedMaxHealth);
+        health.Heal(gainedMaxHealth);
     }
 
     private TomeLevelState FindState(TomeData tome)
@@ -181,5 +211,20 @@ public class PlayerTomeInventory : MonoBehaviour
         }
 
         return null;
+    }
+
+
+    private void EnsureSlotCapacity()
+    {
+        if(!slotCapacityInitialized)
+        {
+            baseSlotCount = Mathf.Clamp(maxSlots, 1, MaximumSlotCount);
+            slotCapacityInitialized = true;
+        }
+
+        if(Application.isPlaying)
+            maxSlots = ShopUI.GetUnlockedSlotCount(false, baseSlotCount, MaximumSlotCount);
+        else
+            maxSlots = Mathf.Clamp(maxSlots, 1, MaximumSlotCount);
     }
 }

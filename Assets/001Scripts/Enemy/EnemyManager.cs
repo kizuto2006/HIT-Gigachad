@@ -297,6 +297,7 @@ public class EnemyManager : MonoBehaviour
         float cellSize = Mathf.Max(0.1f, separationRadius);
         float separationLodSqr = middleDistance * middleDistance;
         Vector3 playerPosition = playerTransform != null ? playerTransform.position : Vector3.zero;
+        bool enemyActionsFrozen = PlayerPowerupController.AreEnemyActionsFrozen;
 
         for (int i = 0; i < count; i++)
         {
@@ -304,11 +305,20 @@ public class EnemyManager : MonoBehaviour
             float3 position = enemy.transform.position;
             positions[i] = position;
 
-            float configuredSpeed = enemy.MoveSpeed;
-            moveSpeeds[i] = configuredSpeed > 0f ? configuredSpeed : runSpeed;
-            moveDirections[i] = enemy.CachedMovementDirection;
-            separationEnabled[i] = (byte)(playerTransform != null &&
-                ((Vector3)position - playerPosition).sqrMagnitude <= separationLodSqr ? 1 : 0);
+            if (enemyActionsFrozen)
+            {
+                moveSpeeds[i] = 0f;
+                moveDirections[i] = float3.zero;
+                separationEnabled[i] = 0;
+            }
+            else
+            {
+                float configuredSpeed = enemy.MoveSpeed;
+                moveSpeeds[i] = configuredSpeed > 0f ? configuredSpeed : runSpeed;
+                moveDirections[i] = enemy.CachedMovementDirection;
+                separationEnabled[i] = (byte)(playerTransform != null &&
+                    ((Vector3)position - playerPosition).sqrMagnitude <= separationLodSqr ? 1 : 0);
+            }
 
             int2 cell = CalculateCell(position, cellSize);
             spatialHash.Add(HashCell(cell), i);

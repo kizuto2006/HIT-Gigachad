@@ -169,21 +169,27 @@ MonoBehaviour:
   enemyTypes:
   - prefab: {fileID: 591085498499679587, guid: 5842d2a93ce72d34694772ba549bb4ea, type: 3}
     earlyWeight: 55
-    lateWeight: 30
+    midWeight: 30
+    lateWeight: 10
   - prefab: {fileID: 3830870348430089234, guid: 2080ad25292d1b14e99063790099074c, type: 3}
-    earlyWeight: 40
-    lateWeight: 25
+    earlyWeight: 45
+    midWeight: 30
+    lateWeight: 10
   - prefab: {fileID: 591085498499679587, guid: e46cb52c480fc8e4c8c6d93bdaae21c0, type: 3}
-    earlyWeight: 5
-    lateWeight: 45
+    earlyWeight: 0
+    midWeight: 0
+    lateWeight: 35
   - prefab: {fileID: 4512229315087773479, guid: eb79308658b87cc4b8f45aa127718500, type: 3}
-    earlyWeight: 20
-    lateWeight: 30
+    earlyWeight: 0
+    midWeight: 40
+    lateWeight: 15
   - prefab: {fileID: 3317642320993298106, guid: 421b565509b4eba42b731c0a0e735b77, type: 3}
-    earlyWeight: 10
-    lateWeight: 25
-  enemyMixRampStart: 60
+    earlyWeight: 0
+    midWeight: 0
+    lateWeight: 30
+  enemyMixRampStart: 120
   enemyMixTransitionDuration: 30
+  enemyMixLateRampStart: 240
   minSpawnRadius: 3
   spawnRadius: 17
   groupSpreadRadius: 2
@@ -196,17 +202,22 @@ MonoBehaviour:
   startingMaxGroupSize: 2
   groupSizeStepSeconds: 15
   groupSizeIncreasePerStep: 1
-  maximumGroupSize: 10
+  maximumGroupSize: 6
   openingGroupSizeMultiplier: 0.5
   openingSpawnDuration: 60
   groupInterval: 2.25
+  earlySpawnBoostDuration: 120
+  earlySpawnIntervalMultiplier: 0.75
   maxActiveEnemies: 300
   raidInterval: 240
-  raidDuration: 60
-  raidBurstInterval: 3
-  raidMinGroupSize: 7
-  raidMaxGroupSize: 15
+  raidDuration: 30
+  raidBurstInterval: 2
+  raidMinGroupSize: 10
+  raidMaxGroupSize: 12
   initialPoolSize: 100
+  maxEnemyDistanceFromPlayer: 100
+  maxEnemyDropBelowPlayer: 40
+  outOfBoundsCheckInterval: 0.25
   emergenceDepth: 2
   emergenceDuration: 0.8
   emergenceStagger: 0.08

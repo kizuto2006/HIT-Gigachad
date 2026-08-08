@@ -18,18 +18,48 @@ public class FlowFieldManager : MonoBehaviour
     [Header("Target")]
     public Transform playerTransform;
 
+    [SerializeField, Min(0.02f)] private float flowFieldUpdateInterval = 0.1f;
+    [SerializeField, Min(1)] private int minimumTargetCellDelta = 2;
+    [SerializeField, Min(4)] private int navigationChunkSize = 32;
+    [SerializeField] private bool cacheStaticNavigation = true;
+
     [Header("Editor Debug")]
     [SerializeField] private bool drawFlowFieldGizmos;
 
     private Cell[,] grid;
     private float cellDiameter;
     private Cell targetCell;
+    private Vector2Int gridOriginCell;
+    private Vector2Int bufferOrigin;
+    private Vector2Int lastSolvedTargetWorldCell;
+    private bool hasSolvedTargetCell;
+    private bool fieldDirty = true;
+    private float nextFlowFieldUpdateTime;
+    private Queue<Cell> integrationQueue;
+    private HashSet<Cell> visitedCells;
+    private readonly Dictionary<Vector2Int, NavigationChunk> navigationChunks = new Dictionary<Vector2Int, NavigationChunk>();
+    private int cachedNavigationChunkSize;
+    private int cachedObstacleLayerValue;
+
+    private sealed class NavigationChunk
+    {
+        public readonly byte[] costs;
+
+        public NavigationChunk(int size)
+        {
+            costs = new byte[size * size];
+        }
+    }
 
     private void Awake()
     {
         Instance = this;
         ClampSettings();
         cellDiameter = cellRadius * 2f;
+        integrationQueue = new Queue<Cell>(gridSize.x * gridSize.y);
+        visitedCells = new HashSet<Cell>();
+        cachedNavigationChunkSize = navigationChunkSize;
+        cachedObstacleLayerValue = obstacleLayer.value;
         CreateGrid();
     }
 
@@ -40,76 +70,274 @@ public class FlowFieldManager : MonoBehaviour
             return;
         }
 
-        Vector3 offsetFromCenter = playerTransform.position - transform.position;
-        offsetFromCenter.y = 0f;
-        if (offsetFromCenter.sqrMagnitude > recenterDistance * recenterDistance)
+        if (NeedsGridShift(playerTransform.position))
         {
-            transform.position = new Vector3(
-                playerTransform.position.x,
-                transform.position.y,
-                playerTransform.position.z);
-            CreateGrid();
-            targetCell = null;
+            ShiftGridToPlayer();
         }
 
-        Cell currentTargetCell = GetCellFromWorldPos(playerTransform.position);
-        if (currentTargetCell != null && targetCell != currentTargetCell)
+        Vector2Int currentTargetWorldCell = WorldToCell(playerTransform.position);
+        if (!IsWorldCellInsideGrid(currentTargetWorldCell))
         {
-            targetCell = currentTargetCell;
-            GenerateIntegrationField(targetCell);
-            GenerateFlowField();
+            ShiftGridToPlayer();
+            currentTargetWorldCell = WorldToCell(playerTransform.position);
         }
+
+        bool targetCellChanged = !hasSolvedTargetCell || currentTargetWorldCell != lastSolvedTargetWorldCell;
+        if (!targetCellChanged && !fieldDirty)
+        {
+            return;
+        }
+
+        if (Time.time < nextFlowFieldUpdateTime)
+        {
+            return;
+        }
+
+        if (hasSolvedTargetCell && GetCellDistance(lastSolvedTargetWorldCell, currentTargetWorldCell) < minimumTargetCellDelta)
+        {
+            return;
+        }
+
+        Cell currentTargetCell = GetCellAtWorldCell(currentTargetWorldCell);
+        if (currentTargetCell == null)
+        {
+            return;
+        }
+
+        targetCell = currentTargetCell;
+        GenerateIntegrationField(targetCell);
+        GenerateFlowField();
+        lastSolvedTargetWorldCell = currentTargetWorldCell;
+        hasSolvedTargetCell = true;
+        fieldDirty = false;
+        nextFlowFieldUpdateTime = Time.time + flowFieldUpdateInterval;
     }
 
-    void CreateGrid()
+    private void CreateGrid()
     {
-        grid = new Cell[gridSize.x, gridSize.y];
-        Vector3 worldBottomLeft = transform.position - Vector3.right * gridSize.x / 2 * cellDiameter - Vector3.forward * gridSize.y / 2 * cellDiameter;
+        EnsureGridBuffer();
 
+        Vector3 worldBottomLeft = transform.position
+            - Vector3.right * gridSize.x * 0.5f * cellDiameter
+            - Vector3.forward * gridSize.y * 0.5f * cellDiameter;
+        gridOriginCell = WorldToCell(worldBottomLeft);
+        bufferOrigin = Vector2Int.zero;
+        SetTransformToGridCenter();
+        RefreshAllCells();
+        targetCell = null;
+        hasSolvedTargetCell = false;
+        fieldDirty = true;
+        nextFlowFieldUpdateTime = 0f;
+    }
+
+    private void EnsureGridBuffer()
+    {
+        if (grid != null &&
+            grid.GetLength(0) == gridSize.x &&
+            grid.GetLength(1) == gridSize.y)
+        {
+            return;
+        }
+
+        grid = new Cell[gridSize.x, gridSize.y];
         for (int x = 0; x < gridSize.x; x++)
         {
             for (int y = 0; y < gridSize.y; y++)
             {
-                Vector3 worldPoint = worldBottomLeft + Vector3.right * (x * cellDiameter + cellRadius) + Vector3.forward * (y * cellDiameter + cellRadius);
-                grid[x, y] = new Cell(worldPoint, new Vector2Int(x, y));
+                grid[x, y] = new Cell(Vector3.zero, Vector2Int.zero);
+            }
+        }
+    }
 
-                // Quét tường: Nếu là tường, gán cost = 2 để quái vật ưu tiên leo thẳng qua thay vì đi vòng
-                if (Physics.CheckSphere(worldPoint, cellRadius - 0.1f, obstacleLayer))
+    private void RefreshAllCells()
+    {
+        for (int x = 0; x < gridSize.x; x++)
+        {
+            for (int y = 0; y < gridSize.y; y++)
+            {
+                RefreshCellAtLogicalIndex(x, y);
+            }
+        }
+    }
+
+    private void RefreshCellAtLogicalIndex(int logicalX, int logicalY)
+    {
+        Cell cell = GetCellAtLogicalIndex(logicalX, logicalY);
+        if (cell == null)
+        {
+            return;
+        }
+
+        Vector2Int worldCell = gridOriginCell + new Vector2Int(logicalX, logicalY);
+        cell.worldPos = GetWorldPositionForCell(worldCell);
+        cell.gridIndex = new Vector2Int(logicalX, logicalY);
+        cell.cost = GetStaticCellCost(worldCell);
+        cell.bestCost = ushort.MaxValue;
+        cell.bestDirection = Vector3.zero;
+    }
+
+    private bool NeedsGridShift(Vector3 playerPosition)
+    {
+        Vector3 offsetFromCenter = playerPosition - transform.position;
+        offsetFromCenter.y = 0f;
+        if (offsetFromCenter.sqrMagnitude > recenterDistance * recenterDistance)
+        {
+            return true;
+        }
+
+        return !IsWorldCellInsideGrid(WorldToCell(playerPosition));
+    }
+
+    private void ShiftGridToPlayer()
+    {
+        Vector2Int playerCell = WorldToCell(playerTransform.position);
+        Vector2Int desiredOrigin = playerCell - new Vector2Int(gridSize.x / 2, gridSize.y / 2);
+        Vector2Int shift = desiredOrigin - gridOriginCell;
+        if (shift == Vector2Int.zero)
+        {
+            return;
+        }
+
+        targetCell = null;
+        hasSolvedTargetCell = false;
+        fieldDirty = true;
+        nextFlowFieldUpdateTime = Time.time;
+
+        if (Mathf.Abs(shift.x) >= gridSize.x || Mathf.Abs(shift.y) >= gridSize.y)
+        {
+            RebuildGridAtOrigin(desiredOrigin);
+            return;
+        }
+
+        ShiftRingBuffer(shift);
+        SetTransformToGridCenter();
+    }
+
+    private void RebuildGridAtOrigin(Vector2Int newOrigin)
+    {
+        EnsureGridBuffer();
+        gridOriginCell = newOrigin;
+        bufferOrigin = Vector2Int.zero;
+        SetTransformToGridCenter();
+        RefreshAllCells();
+    }
+
+    private void ShiftRingBuffer(Vector2Int shift)
+    {
+        gridOriginCell += shift;
+        bufferOrigin = new Vector2Int(
+            PositiveModulo(bufferOrigin.x + shift.x, gridSize.x),
+            PositiveModulo(bufferOrigin.y + shift.y, gridSize.y));
+
+        int newColumnStart = 0;
+        int newColumnEnd = -1;
+        if (shift.x > 0)
+        {
+            newColumnStart = gridSize.x - shift.x;
+            newColumnEnd = gridSize.x - 1;
+        }
+        else if (shift.x < 0)
+        {
+            newColumnStart = 0;
+            newColumnEnd = -shift.x - 1;
+        }
+
+        if (shift.x != 0)
+        {
+            for (int x = newColumnStart; x <= newColumnEnd; x++)
+            {
+                for (int y = 0; y < gridSize.y; y++)
                 {
-                    grid[x, y].cost = 2;
+                    RefreshCellAtLogicalIndex(x, y);
+                }
+            }
+        }
+
+        int newRowStart = 0;
+        int newRowEnd = -1;
+        if (shift.y > 0)
+        {
+            newRowStart = gridSize.y - shift.y;
+            newRowEnd = gridSize.y - 1;
+        }
+        else if (shift.y < 0)
+        {
+            newRowStart = 0;
+            newRowEnd = -shift.y - 1;
+        }
+
+        if (shift.y != 0)
+        {
+            for (int y = newRowStart; y <= newRowEnd; y++)
+            {
+                for (int x = 0; x < gridSize.x; x++)
+                {
+                    if (shift.x != 0 && x >= newColumnStart && x <= newColumnEnd)
+                    {
+                        continue;
+                    }
+
+                    RefreshCellAtLogicalIndex(x, y);
                 }
             }
         }
     }
 
-    void GenerateIntegrationField(Cell destinationCell)
+    private void SetTransformToGridCenter()
     {
-        foreach (Cell c in grid) c.bestCost = ushort.MaxValue;
+        Vector3 position = transform.position;
+        position.x = (gridOriginCell.x + gridSize.x * 0.5f) * cellDiameter;
+        position.z = (gridOriginCell.y + gridSize.y * 0.5f) * cellDiameter;
+        transform.position = position;
+    }
+
+    private void GenerateIntegrationField(Cell destinationCell)
+    {
+        for (int x = 0; x < gridSize.x; x++)
+        {
+            for (int y = 0; y < gridSize.y; y++)
+            {
+                grid[x, y].bestCost = ushort.MaxValue;
+            }
+        }
 
         destinationCell.bestCost = 0;
+        integrationQueue.Clear();
+        visitedCells.Clear();
+        integrationQueue.Enqueue(destinationCell);
+        visitedCells.Add(destinationCell);
 
-        Queue<Cell> cellsToCheck = new Queue<Cell>();
-        HashSet<Cell> visited = new HashSet<Cell>();
-
-        cellsToCheck.Enqueue(destinationCell);
-        visited.Add(destinationCell);
-
-        while (cellsToCheck.Count > 0)
+        while (integrationQueue.Count > 0)
         {
-            Cell currentCell = cellsToCheck.Dequeue();
-            List<Cell> neighbors = GetNeighborCells(currentCell.gridIndex);
+            Cell currentCell = integrationQueue.Dequeue();
+            int currentX = currentCell.gridIndex.x;
+            int currentY = currentCell.gridIndex.y;
 
-            foreach (Cell neighbor in neighbors)
+            for (int offsetX = -1; offsetX <= 1; offsetX++)
             {
-                ushort newCost = (ushort)(neighbor.cost + currentCell.bestCost);
-                if (newCost < neighbor.bestCost)
+                for (int offsetY = -1; offsetY <= 1; offsetY++)
                 {
-                    neighbor.bestCost = newCost;
-
-                    if (!visited.Contains(neighbor))
+                    if (offsetX == 0 && offsetY == 0)
                     {
-                        cellsToCheck.Enqueue(neighbor);
-                        visited.Add(neighbor);
+                        continue;
+                    }
+
+                    Cell neighbor = GetCellAtLogicalIndex(currentX + offsetX, currentY + offsetY);
+                    if (neighbor == null)
+                    {
+                        continue;
+                    }
+
+                    ushort newCost = (ushort)(neighbor.cost + currentCell.bestCost);
+                    if (newCost < neighbor.bestCost)
+                    {
+                        neighbor.bestCost = newCost;
+
+                        if (!visitedCells.Contains(neighbor))
+                        {
+                            integrationQueue.Enqueue(neighbor);
+                            visitedCells.Add(neighbor);
+                        }
                     }
                 }
             }
@@ -118,18 +346,32 @@ public class FlowFieldManager : MonoBehaviour
 
     private void GenerateFlowField()
     {
-        foreach (Cell c in grid)
+        for (int x = 0; x < gridSize.x; x++)
         {
-            c.bestDirection = Vector3.zero;
-            ushort bestCost = c.bestCost;
-            List<Cell> neighbors = GetNeighborCells(c.gridIndex);
-
-            foreach (Cell neighbor in neighbors)
+            for (int y = 0; y < gridSize.y; y++)
             {
-                if (neighbor.bestCost < bestCost)
+                Cell cell = GetCellAtLogicalIndex(x, y);
+                cell.bestDirection = Vector3.zero;
+                ushort bestCost = cell.bestCost;
+
+                for (int offsetX = -1; offsetX <= 1; offsetX++)
                 {
-                    bestCost = neighbor.bestCost;
-                    c.bestDirection = (neighbor.worldPos - c.worldPos).normalized;
+                    for (int offsetY = -1; offsetY <= 1; offsetY++)
+                    {
+                        if (offsetX == 0 && offsetY == 0)
+                        {
+                            continue;
+                        }
+
+                        Cell neighbor = GetCellAtLogicalIndex(x + offsetX, y + offsetY);
+                        if (neighbor == null || neighbor.bestCost >= bestCost)
+                        {
+                            continue;
+                        }
+
+                        bestCost = neighbor.bestCost;
+                        cell.bestDirection = (neighbor.worldPos - cell.worldPos).normalized;
+                    }
                 }
             }
         }
@@ -137,44 +379,130 @@ public class FlowFieldManager : MonoBehaviour
 
     public Cell GetCellFromWorldPos(Vector3 worldPos)
     {
-        if (grid == null)
-        {
-            return null;
-        }
-
-        Vector3 worldBottomLeft = transform.position
-            - Vector3.right * gridSize.x * 0.5f * cellDiameter
-            - Vector3.forward * gridSize.y * 0.5f * cellDiameter;
-        float localX = worldPos.x - worldBottomLeft.x;
-        float localZ = worldPos.z - worldBottomLeft.z;
-        float gridWorldWidth = gridSize.x * cellDiameter;
-        float gridWorldDepth = gridSize.y * cellDiameter;
-
-        if (localX < 0f || localX >= gridWorldWidth || localZ < 0f || localZ >= gridWorldDepth)
-        {
-            return null;
-        }
-
-        int x = Mathf.Clamp(Mathf.FloorToInt(localX / cellDiameter), 0, gridSize.x - 1);
-        int y = Mathf.Clamp(Mathf.FloorToInt(localZ / cellDiameter), 0, gridSize.y - 1);
-        return grid[x, y];
+        return GetCellAtWorldCell(WorldToCell(worldPos));
     }
 
-    List<Cell> GetNeighborCells(Vector2Int nodeIndex)
+    private Cell GetCellAtWorldCell(Vector2Int worldCell)
     {
-        List<Cell> neighbors = new List<Cell>();
-        for (int x = -1; x <= 1; x++)
+        if (!IsWorldCellInsideGrid(worldCell))
         {
-            for (int y = -1; y <= 1; y++)
-            {
-                if (x == 0 && y == 0) continue;
-                int checkX = nodeIndex.x + x;
-                int checkY = nodeIndex.y + y;
-                if (checkX >= 0 && checkX < gridSize.x && checkY >= 0 && checkY < gridSize.y)
-                    neighbors.Add(grid[checkX, checkY]);
-            }
+            return null;
         }
-        return neighbors;
+
+        return GetCellAtLogicalIndex(
+            worldCell.x - gridOriginCell.x,
+            worldCell.y - gridOriginCell.y);
+    }
+
+    private Cell GetCellAtLogicalIndex(int logicalX, int logicalY)
+    {
+        if (grid == null || logicalX < 0 || logicalX >= gridSize.x || logicalY < 0 || logicalY >= gridSize.y)
+        {
+            return null;
+        }
+
+        int bufferX = PositiveModulo(bufferOrigin.x + logicalX, gridSize.x);
+        int bufferY = PositiveModulo(bufferOrigin.y + logicalY, gridSize.y);
+        return grid[bufferX, bufferY];
+    }
+
+    private bool IsWorldCellInsideGrid(Vector2Int worldCell)
+    {
+        int logicalX = worldCell.x - gridOriginCell.x;
+        int logicalY = worldCell.y - gridOriginCell.y;
+        return logicalX >= 0 && logicalX < gridSize.x && logicalY >= 0 && logicalY < gridSize.y;
+    }
+
+    private Vector2Int WorldToCell(Vector3 worldPosition)
+    {
+        return new Vector2Int(
+            Mathf.FloorToInt(worldPosition.x / cellDiameter),
+            Mathf.FloorToInt(worldPosition.z / cellDiameter));
+    }
+
+    private Vector3 GetWorldPositionForCell(Vector2Int worldCell)
+    {
+        return new Vector3(
+            worldCell.x * cellDiameter + cellRadius,
+            transform.position.y,
+            worldCell.y * cellDiameter + cellRadius);
+    }
+
+    private byte GetStaticCellCost(Vector2Int worldCell)
+    {
+        if (!cacheStaticNavigation)
+        {
+            return SampleStaticCellCost(worldCell);
+        }
+
+        if (cachedNavigationChunkSize != navigationChunkSize || cachedObstacleLayerValue != obstacleLayer.value)
+        {
+            navigationChunks.Clear();
+            cachedNavigationChunkSize = navigationChunkSize;
+            cachedObstacleLayerValue = obstacleLayer.value;
+        }
+
+        Vector2Int chunkCoordinate = new Vector2Int(
+            FloorDivide(worldCell.x, navigationChunkSize),
+            FloorDivide(worldCell.y, navigationChunkSize));
+        int localX = worldCell.x - chunkCoordinate.x * navigationChunkSize;
+        int localY = worldCell.y - chunkCoordinate.y * navigationChunkSize;
+        int localIndex = localX + localY * navigationChunkSize;
+
+        if (!navigationChunks.TryGetValue(chunkCoordinate, out NavigationChunk chunk))
+        {
+            chunk = new NavigationChunk(navigationChunkSize);
+            navigationChunks.Add(chunkCoordinate, chunk);
+        }
+
+        if (chunk.costs[localIndex] == 0)
+        {
+            chunk.costs[localIndex] = SampleStaticCellCost(worldCell);
+        }
+
+        return chunk.costs[localIndex];
+    }
+
+    private byte SampleStaticCellCost(Vector2Int worldCell)
+    {
+        Vector3 worldPoint = GetWorldPositionForCell(worldCell);
+        return Physics.CheckSphere(worldPoint, cellRadius - 0.1f, obstacleLayer) ? (byte)2 : (byte)1;
+    }
+
+    public void InvalidateStaticNavigationCache()
+    {
+        navigationChunks.Clear();
+        cachedNavigationChunkSize = navigationChunkSize;
+        cachedObstacleLayerValue = obstacleLayer.value;
+
+        if (grid == null)
+        {
+            return;
+        }
+
+        RebuildGridAtOrigin(gridOriginCell);
+        targetCell = null;
+        hasSolvedTargetCell = false;
+        fieldDirty = true;
+        nextFlowFieldUpdateTime = Time.time;
+    }
+
+    private static int FloorDivide(int value, int divisor)
+    {
+        int quotient = value / divisor;
+        int remainder = value % divisor;
+        return remainder < 0 ? quotient - 1 : quotient;
+    }
+
+    private static int PositiveModulo(int value, int modulo)
+    {
+        int result = value % modulo;
+        return result < 0 ? result + modulo : result;
+    }
+
+    private static int GetCellDistance(Vector2Int first, Vector2Int second)
+    {
+        return Mathf.Max(Mathf.Abs(first.x - second.x), Mathf.Abs(first.y - second.y));
     }
 
     // Hàm này sẽ vẽ các ô lưới và mũi tên ra màn hình Scene (chỉ hiển thị trong Editor)
@@ -210,5 +538,8 @@ public class FlowFieldManager : MonoBehaviour
         gridSize.y = Mathf.Max(1, gridSize.y);
         cellRadius = Mathf.Max(0.1f, cellRadius);
         recenterDistance = Mathf.Max(1f, recenterDistance);
+        flowFieldUpdateInterval = Mathf.Max(0.02f, flowFieldUpdateInterval);
+        minimumTargetCellDelta = Mathf.Max(1, minimumTargetCellDelta);
+        navigationChunkSize = Mathf.Max(4, navigationChunkSize);
     }
 }

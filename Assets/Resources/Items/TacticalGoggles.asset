@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11e7ec8d3859aab4db4fc818a1bd0d40, type: 3}
+  m_Name: TacticalGoggles
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemName: Tactical Goggles
+  description: Deals 20% more damage to enemies above 90% health.
+  icon: {fileID: 21300000, guid: b5a13175c661b3040b82af684cef3340, type: 3}
+  rarity: 0
+  effectType: 8
+  valueType: 0
+  valuePerLevel: 0.2
+  maxLevel: 99
+  conditionThreshold: 0.9
+  chestWeight: 1

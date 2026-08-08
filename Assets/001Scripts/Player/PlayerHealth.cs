@@ -51,15 +51,30 @@ public class PlayerHealth : MonoBehaviour
     /// </summary>
     public void TakeDamage(float raw)
     {
-        if (isDead || raw <= 0f) return;
+        if (isDead || raw <= 0f)
+            return;
+
+        PlayerPowerupController powerups = GetComponent<PlayerPowerupController>();
+        if (powerups != null && powerups.IsInvulnerable)
+            return;
+        if (stats != null &&
+            stats.FinalDodgeChance > 0f &&
+            UnityEngine.Random.value < stats.FinalDodgeChance)
+        {
+            return;
+        }
 
         if (stats != null)
             raw *= 1f - stats.FinalArmorReduction;
 
         if (raw > 0f)
         {
+            float damageApplied = Mathf.Min(raw, currentHp);
             currentHp -= raw;
             TriggerHitFlash();
+            DamageNumberPopup.ShowHealthChange(-damageApplied, GetHealthNumberPosition());
+            if (damageApplied > 0f)
+                SoundEffectsAudioManager.Instance?.PlayTakeDamageSound();
         }
 
         if (currentHp <= 0f)
@@ -69,6 +84,53 @@ public class PlayerHealth : MonoBehaviour
             return;
         }
     }
+
+    public void Heal(float amount)
+    {
+        if (isDead || amount <= 0f)
+            return;
+
+        float maxHealth = stats != null ? stats.FinalHp : 100f;
+        float previousHp = currentHp;
+        currentHp = Mathf.Clamp(currentHp + amount, 0f, maxHealth);
+
+        float healedAmount = currentHp - previousHp;
+        if (healedAmount > 0f)
+            DamageNumberPopup.ShowHealthChange(healedAmount, GetHealthNumberPosition());
+    }
+
+    public void HealToFull()
+    {
+        if (isDead)
+            return;
+
+        float maxHealth = stats != null ? stats.FinalHp : 100f;
+        float previousHp = currentHp;
+        currentHp = maxHealth;
+
+        float healedAmount = currentHp - previousHp;
+        if (healedAmount > 0f)
+            DamageNumberPopup.ShowHealthChange(healedAmount, GetHealthNumberPosition());
+    }
+
+    private Vector3 GetHealthNumberPosition()
+    {
+        if (cachedRenderers != null)
+        {
+            for (int i = 0; i < cachedRenderers.Length; i++)
+            {
+                Renderer targetRenderer = cachedRenderers[i];
+                if (targetRenderer == null || !targetRenderer.enabled)
+                    continue;
+
+                Bounds bounds = targetRenderer.bounds;
+                return bounds.center + Vector3.up * (bounds.extents.y + 0.2f);
+            }
+        }
+
+        return transform.position + Vector3.up;
+    }
+
 
     private void TriggerHitFlash()
     {
@@ -129,6 +191,12 @@ public class PlayerHealth : MonoBehaviour
     {
         if (isDead) return;
         isDead = true;
+
+        PlayerPowerupController powerups = GetComponent<PlayerPowerupController>();
+        if (powerups != null)
+            powerups.ClearAllPowerups();
+
+        SoundEffectsAudioManager.Instance?.PlayLoseSound();
         Debug.Log("Player died");
         Died?.Invoke();
     }

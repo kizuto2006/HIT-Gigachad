@@ -158,10 +158,10 @@ public static class FireBallSetupBuilder
         main.startColor = new ParticleSystem.MinMaxGradient(
             new Color(1f, 1f, 0.75f, 1f),
             new Color(1f, 0.78f, 0.12f, 1f));
-        main.maxParticles = 12;
+        main.maxParticles = 8;
 
         ParticleSystem.EmissionModule emission = particles.emission;
-        emission.rateOverTime = 80f;
+        emission.rateOverTime = 32f;
 
         ParticleSystem.SizeOverLifetimeModule size = particles.sizeOverLifetime;
         size.enabled = true;
@@ -182,10 +182,10 @@ public static class FireBallSetupBuilder
         main.startColor = new ParticleSystem.MinMaxGradient(
             new Color(1f, 0.94f, 0.12f, 1f),
             new Color(1f, 0.33f, 0.015f, 0.9f));
-        main.maxParticles = 18;
+        main.maxParticles = 10;
 
         ParticleSystem.EmissionModule emission = particles.emission;
-        emission.rateOverTime = 52f;
+        emission.rateOverTime = 20f;
 
         ParticleSystem.ShapeModule shape = particles.shape;
         shape.enabled = true;
@@ -211,10 +211,10 @@ public static class FireBallSetupBuilder
         main.startColor = new ParticleSystem.MinMaxGradient(
             new Color(1f, 0.4f, 0.025f, 0.95f),
             new Color(0.95f, 0.045f, 0.008f, 0.78f));
-        main.maxParticles = 32;
+        main.maxParticles = 16;
 
         ParticleSystem.EmissionModule emission = particles.emission;
-        emission.rateOverTime = 45f;
+        emission.rateOverTime = 18f;
 
         ParticleSystem.ShapeModule shape = particles.shape;
         shape.enabled = true;
@@ -240,10 +240,10 @@ public static class FireBallSetupBuilder
         main.startColor = new ParticleSystem.MinMaxGradient(
             new Color(1f, 0.93f, 0.12f, 0.95f),
             new Color(1f, 0.42f, 0.02f, 0.82f));
-        main.maxParticles = 22;
+        main.maxParticles = 12;
 
         ParticleSystem.EmissionModule emission = particles.emission;
-        emission.rateOverTime = 28f;
+        emission.rateOverTime = 12f;
 
         ParticleSystem.ShapeModule shape = particles.shape;
         shape.enabled = true;
@@ -269,10 +269,10 @@ public static class FireBallSetupBuilder
         main.startColor = new ParticleSystem.MinMaxGradient(
             Color.white,
             new Color(1f, 0.75f, 0.08f, 0.95f));
-        main.maxParticles = 28;
+        main.maxParticles = 14;
 
         ParticleSystem.EmissionModule emission = particles.emission;
-        emission.rateOverTime = 22f;
+        emission.rateOverTime = 10f;
 
         ParticleSystem.ShapeModule shape = particles.shape;
         shape.enabled = true;
@@ -293,7 +293,7 @@ public static class FireBallSetupBuilder
         ParticleSystem flash = CreateParticleSystem(root, "WhiteFlash");
         ConfigureBurst(
             flash,
-            5,
+            3,
             0.11f,
             0.2f,
             0.1f,
@@ -308,7 +308,7 @@ public static class FireBallSetupBuilder
         ParticleSystem rings = CreateParticleSystem(root, "YellowOrangeRings");
         ConfigureBurst(
             rings,
-            9,
+            5,
             0.16f,
             0.3f,
             0.5f,
@@ -323,7 +323,7 @@ public static class FireBallSetupBuilder
         ParticleSystem embers = CreateParticleSystem(root, "RoundRedEmbers");
         ConfigureBurst(
             embers,
-            13,
+            7,
             0.18f,
             0.38f,
             1.5f,
@@ -338,7 +338,7 @@ public static class FireBallSetupBuilder
         ParticleSystem sparks = CreateParticleSystem(root, "RadialWhiteSparks");
         ConfigureBurst(
             sparks,
-            26,
+            14,
             0.12f,
             0.28f,
             3.5f,
@@ -388,7 +388,7 @@ public static class FireBallSetupBuilder
         main.startSize = new ParticleSystem.MinMaxCurve(minSize, maxSize);
         main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
         main.startColor = new ParticleSystem.MinMaxGradient(minColor, maxColor);
-        main.maxParticles = count + 4;
+        main.maxParticles = count + 2;
 
         ParticleSystem.EmissionModule emission = particles.emission;
         emission.rateOverTime = 0f;
@@ -416,7 +416,7 @@ public static class FireBallSetupBuilder
         ParticleSystem.MainModule main = particles.main;
         main.playOnAwake = true;
         main.scalingMode = ParticleSystemScalingMode.Hierarchy;
-        main.cullingMode = ParticleSystemCullingMode.AlwaysSimulate;
+        main.cullingMode = ParticleSystemCullingMode.Automatic;
 
         ParticleSystem.EmissionModule emission = particles.emission;
         emission.enabled = true;

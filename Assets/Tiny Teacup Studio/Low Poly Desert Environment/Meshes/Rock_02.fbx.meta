@@ -1,5 +1,12 @@
 fileFormatVersion: 2
 guid: 81f20bfb3dbff76489c957bdd927b0e5
+AssetOrigin:
+  serializedVersion: 1
+  productId: 333554
+  packageName: Low-Poly Desert Environment Pack
+  packageVersion: 1.0
+  assetPath: Assets/Tiny Teacup Studio/Low Poly Desert Environment/Meshes/Rock_02.fbx
+  uploadId: 800150
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
@@ -35,7 +42,7 @@ ModelImporter:
     extraExposedTransformPaths: []
     extraUserProperties: []
     clipAnimations: []
-    isReadable: 0
+    isReadable: 1
   meshes:
     lODScreenPercentages: []
     globalScale: 1
@@ -113,10 +120,3 @@ ModelImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 333554
-  packageName: Low-Poly Desert Environment Pack
-  packageVersion: 1.0
-  assetPath: Assets/Tiny Teacup Studio/Low Poly Desert Environment/Meshes/Rock_02.fbx
-  uploadId: 800150

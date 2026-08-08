@@ -155,10 +155,7 @@ public class ProjectileWeapon : WeaponBehaviour
                         0.4f);
                 }
 
-                if (data.attackSound != null)
-                    AudioSource.PlayClipAtPoint(
-                        data.attackSound,
-                        projectileSpawnPos);
+                PlayWeaponAttackSound(projectileSpawnPos);
             }
 
             if (i < count - 1 && data.projectileBurstInterval > 0f)

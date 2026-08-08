@@ -6,12 +6,21 @@ using UnityEngine.UI;
 /// Top-of-screen boss HUD presenter. The layout is authored in the scene while
 /// this component owns boss discovery, health animation and visibility.
 /// </summary>
+public enum BossHealthTarget
+{
+    Any,
+    StoneGolem,
+    Anubis
+}
+
 [DisallowMultipleComponent]
 public sealed class BossHealthBarUI : MonoBehaviour
 {
     [Header("Boss")]
     [SerializeField] private EnemyHealth bossHealth;
     [SerializeField] private string bossDisplayName = "STONE GOLEM";
+    [SerializeField] private bool autoResolveBoss = true;
+    [SerializeField] private BossHealthTarget bossTarget = BossHealthTarget.Any;
 
     [Header("UI")]
     [SerializeField] private Image healthFill;
@@ -31,13 +40,17 @@ public sealed class BossHealthBarUI : MonoBehaviour
 
     private void Start()
     {
-        ResolveBoss();
+        if (autoResolveBoss || bossHealth == null)
+        {
+            ResolveBoss();
+        }
+
         RefreshBossBinding(true);
     }
 
     private void Update()
     {
-        if (bossHealth == null)
+        if (autoResolveBoss && ShouldResolveBoss())
         {
             ResolveBoss();
             RefreshBossBinding(true);
@@ -84,16 +97,73 @@ public sealed class BossHealthBarUI : MonoBehaviour
         bossNameText = nameLabel;
         healthText = hpLabel;
         canvasGroup = group;
+        autoResolveBoss = targetBoss == null;
         bossDisplayName = string.IsNullOrWhiteSpace(displayName) ? "BOSS" : displayName;
     }
 
     private void ResolveBoss()
     {
-        StoneGolemSandBurstAttack stoneGolem = FindFirstObjectByType<StoneGolemSandBurstAttack>();
-        if (stoneGolem != null)
+        if (bossTarget == BossHealthTarget.Anubis)
         {
-            bossHealth = stoneGolem.GetComponent<EnemyHealth>();
+            AnubisLaserAttackController anubis = FindFirstObjectByType<AnubisLaserAttackController>();
+            if (anubis != null)
+            {
+                EnemyHealth anubisHealth = anubis.GetComponent<EnemyHealth>();
+                if (anubisHealth != null && anubisHealth.gameObject.activeInHierarchy)
+                {
+                    bossHealth = anubisHealth;
+                    bossDisplayName = "ANUBIS";
+                    return;
+                }
+            }
+
+            bossHealth = null;
+            return;
         }
+
+        if (bossTarget == BossHealthTarget.StoneGolem)
+        {
+            StoneGolemSandBurstAttack stoneGolem = FindFirstObjectByType<StoneGolemSandBurstAttack>();
+            if (stoneGolem != null)
+            {
+                EnemyHealth stoneGolemHealth = stoneGolem.GetComponent<EnemyHealth>();
+                if (stoneGolemHealth != null && stoneGolemHealth.gameObject.activeInHierarchy)
+                {
+                    bossHealth = stoneGolemHealth;
+                    bossDisplayName = "STONE GOLEM";
+                    return;
+                }
+            }
+
+            bossHealth = null;
+            return;
+        }
+
+        AnubisLaserAttackController activeAnubis = FindFirstObjectByType<AnubisLaserAttackController>();
+        if (activeAnubis != null)
+        {
+            EnemyHealth anubisHealth = activeAnubis.GetComponent<EnemyHealth>();
+            if (anubisHealth != null && anubisHealth.gameObject.activeInHierarchy)
+            {
+                bossHealth = anubisHealth;
+                bossDisplayName = "ANUBIS";
+                return;
+            }
+        }
+
+        StoneGolemSandBurstAttack activeStoneGolem = FindFirstObjectByType<StoneGolemSandBurstAttack>();
+        if (activeStoneGolem != null)
+        {
+            EnemyHealth stoneGolemHealth = activeStoneGolem.GetComponent<EnemyHealth>();
+            if (stoneGolemHealth != null && stoneGolemHealth.gameObject.activeInHierarchy)
+            {
+                bossHealth = stoneGolemHealth;
+                bossDisplayName = "STONE GOLEM";
+                return;
+            }
+        }
+
+        bossHealth = null;
     }
 
     private void RefreshBossBinding(bool immediate)
@@ -180,5 +250,45 @@ public sealed class BossHealthBarUI : MonoBehaviour
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
         }
+    }
+
+
+    private bool ShouldResolveBoss()
+    {
+        if (!autoResolveBoss)
+        {
+            return false;
+        }
+
+        if (bossHealth == null || !bossHealth.gameObject.activeInHierarchy)
+        {
+            return true;
+        }
+
+        if (bossTarget == BossHealthTarget.Anubis)
+        {
+            return bossHealth.GetComponent<AnubisLaserAttackController>() == null;
+        }
+
+        if (bossTarget == BossHealthTarget.StoneGolem)
+        {
+            return bossHealth.GetComponent<StoneGolemSandBurstAttack>() == null;
+        }
+
+        if (bossHealth.GetComponent<AnubisLaserAttackController>() != null)
+        {
+            return false;
+        }
+
+        AnubisLaserAttackController anubis = FindFirstObjectByType<AnubisLaserAttackController>();
+        if (anubis == null)
+        {
+            return false;
+        }
+
+        EnemyHealth anubisHealth = anubis.GetComponent<EnemyHealth>();
+        return anubisHealth != null &&
+               anubisHealth.gameObject.activeInHierarchy &&
+               bossHealth != anubisHealth;
     }
 }

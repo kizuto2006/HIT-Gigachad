@@ -66,10 +66,7 @@ public class AoEWeapon : WeaponBehaviour
         );
 
         // Play SFX
-        if (data.attackSound != null)
-        {
-            AudioSource.PlayClipAtPoint(data.attackSound, spawnPos);
-        }
+        PlayWeaponAttackSound(spawnPos);
     }
 }
 

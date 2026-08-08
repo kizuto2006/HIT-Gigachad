@@ -9,8 +9,19 @@ using System;
 /// </summary>
 public class WeaponInventory : MonoBehaviour
 {
+
+    private void Awake()
+    {
+        EnsureSlotCapacity();
+    }
+
     [Header("── Settings ──")]
     [Tooltip("Số slot vũ khí tối đa.")]
+
+
+    private const int MaximumSlotCount = 4;
+    private int baseSlotCount;
+    private bool slotCapacityInitialized;
     public int maxSlots = 2;
 
     [Header("── References ──")]
@@ -24,13 +35,29 @@ public class WeaponInventory : MonoBehaviour
     public IReadOnlyList<WeaponBehaviour> EquippedWeapons => equippedWeapons;
     public event Action WeaponsChanged;
 
-    public int SlotCount => equippedWeapons.Count;
-    public bool IsFull => equippedWeapons.Count >= maxSlots;
+
+    public int MaxSlots
+    {
+        get
+        {
+            EnsureSlotCapacity();
+            return maxSlots;
+        }
+    }
+public int SlotCount => equippedWeapons.Count;
+    public bool IsFull
+    {
+        get
+        {
+            EnsureSlotCapacity();
+            return equippedWeapons.Count >= maxSlots;
+        }
+    }
 
     /// <summary>
     /// Thêm vũ khí mới vào inventory. Trả về WeaponBehaviour mới hoặc null nếu đầy.
     /// </summary>
-    public WeaponBehaviour AddWeapon(WeaponData data)
+    public WeaponBehaviour AddWeapon(WeaponData data, float rarityMultiplier = 1f)
     {
         if (data == null)
         {
@@ -44,21 +71,19 @@ public class WeaponInventory : MonoBehaviour
             return null;
         }
 
-        // Check trùng
         if (HasWeapon(data))
         {
             Debug.LogWarning($"[WeaponInventory] {data.weaponName} đã được trang bị!");
             return null;
         }
 
-        // Tạo child GameObject cho weapon
         GameObject weaponGO = new GameObject($"Weapon_{data.weaponName}");
         weaponGO.transform.SetParent(transform, false);
 
-        // Mỗi weapon cụ thể được ưu tiên dùng script chiến đấu riêng.
         WeaponBehaviour behaviour = AddBehaviourForWeapon(weaponGO, data);
         behaviour.data = data;
         behaviour.Initialize(playerStats, enemyLayer, transform);
+        behaviour.SetInitialRarityMultiplier(rarityMultiplier);
 
         equippedWeapons.Add(behaviour);
         WeaponsChanged?.Invoke();
@@ -70,7 +95,7 @@ public class WeaponInventory : MonoBehaviour
     /// <summary>
     /// Level up vũ khí đã trang bị. Trả về true nếu thành công.
     /// </summary>
-    public bool UpgradeWeapon(WeaponData data)
+    public bool UpgradeWeapon(WeaponData data, float rarityMultiplier = 1f)
     {
         WeaponBehaviour weapon = GetWeapon(data);
         if (weapon == null)
@@ -79,7 +104,7 @@ public class WeaponInventory : MonoBehaviour
             return false;
         }
 
-        bool upgraded = weapon.LevelUp();
+        bool upgraded = weapon.LevelUp(rarityMultiplier);
         if (upgraded)
             WeaponsChanged?.Invoke();
 
@@ -140,6 +165,8 @@ public class WeaponInventory : MonoBehaviour
                 return go.AddComponent<SwordWeapon>();
             case WeaponAttackType.RadialPulse:
                 return go.AddComponent<AuraWeapon>();
+            case WeaponAttackType.Firewalker:
+                return go.AddComponent<FirewalkerWeapon>();
         }
 
         // Fallback cho những weapon chưa có implementation riêng.
@@ -157,5 +184,17 @@ public class WeaponInventory : MonoBehaviour
                 Debug.LogWarning($"[WeaponInventory] Unknown weapon type: {weaponData.weaponType}, defaulting to Melee.");
                 return go.AddComponent<MeleeWeapon>();
         }
+    }
+
+
+    private void EnsureSlotCapacity()
+    {
+        if(!slotCapacityInitialized)
+        {
+            baseSlotCount = Mathf.Clamp(maxSlots, 1, MaximumSlotCount);
+            slotCapacityInitialized = true;
+        }
+
+        maxSlots = ShopUI.GetUnlockedSlotCount(true, baseSlotCount, MaximumSlotCount);
     }
 }

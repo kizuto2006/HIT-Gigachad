@@ -70,6 +70,10 @@ public class PlayerBaseStats : ScriptableObject
     [Tooltip("Tỷ lệ giảm damage nhận vào.")]
     public float armorReduction = 0f;
 
+    [Range(0f, 0.95f)]
+    [Tooltip("Tỷ lệ né tránh damage.")]
+    public float dodgeChance = 0f;
+
     // ═══════════════════════════════════════════
     //  OFFENSE
     // ═══════════════════════════════════════════
@@ -120,18 +124,25 @@ public class PlayerBaseStats : ScriptableObject
     [Min(0f)] public float pickupRange = 1f;
     [Min(0f)] public float experienceMultiplier = 1f;
 
+    [Header("── Powerups ──")]
+    [Range(0f, 1f)]
+    [Tooltip("Base chance for an enemy to drop a temporary powerup.")]
+    public float powerupDropChance = 0.01f;
+    [Min(1f)]
+    [Tooltip("Scales the strength and duration of active powerups.")]
+    public float powerupMultiplier = 1f;
     // ═══════════════════════════════════════════
     //  COMPUTED PROPERTIES
     // ═══════════════════════════════════════════
 
     /// <summary>(baseHp + bonusHpFlat) * (1 + bonusHpPct)</summary>
-    public float FinalHp => (baseHp + bonusHpFlat) * Mathf.Max(0f, 1f + bonusHpPct + runtimeTomeMaxHealthBonusPct);
+    public float FinalHp => (baseHp + bonusHpFlat + runtimeItemMaxHealthFlat) * Mathf.Max(0f, 1f + bonusHpPct + runtimeTomeMaxHealthBonusPct + runtimeItemMaxHealthBonusPct);
 
     /// <summary>baseAtk * (1 + bonusAtkPct)</summary>
     public float FinalAtk => baseAtk * FinalDamageMultiplier;
 
     /// <summary>baseSpeed * (1 + bonusSpeedPct)</summary>
-    public float FinalSpeed => baseSpeed * Mathf.Max(0f, 1f + bonusSpeedPct + runtimeTomeMoveSpeedBonusPct);
+    public float FinalSpeed => baseSpeed * Mathf.Max(0f, 1f + bonusSpeedPct + runtimeTomeMoveSpeedBonusPct + runtimeItemMoveSpeedBonusPct);
 
     /// <summary>baseJumpHeight * (1 + bonusJumpHeightPct)</summary>
     public float FinalJumpHeight => baseJumpHeight * (1f + bonusJumpHeightPct);
@@ -144,15 +155,21 @@ public class PlayerBaseStats : ScriptableObject
 
     public float FinalArmorReduction => Mathf.Clamp(armorReduction + runtimeTomeArmorBonusPct, 0f, 0.95f);
     public float FinalCriticalChance => Mathf.Clamp01(criticalChance);
-    public float FinalCriticalDamageMultiplier => Mathf.Max(1f, criticalDamageMultiplier);
-    public float FinalAttackSpeedMultiplier => Mathf.Max(0.01f, attackSpeedMultiplier + runtimeTomeCooldownBonusPct);
+    public float FinalCriticalDamageMultiplier => Mathf.Max(1f, criticalDamageMultiplier + runtimeItemCriticalDamageBonus);
+    public float FinalAttackSpeedMultiplier => Mathf.Max(0.01f, attackSpeedMultiplier + runtimeTomeCooldownBonusPct + runtimeItemAttackSpeedBonusPct);
     public float FinalWeaponSizeMultiplier => Mathf.Max(0.01f, weaponSizeMultiplier + runtimeTomeSizeBonusPct);
     public float FinalDurationMultiplier => Mathf.Max(0.01f, durationMultiplier);
     public float FinalKnockbackMultiplier => Mathf.Max(0f, knockbackMultiplier);
     public float FinalPickupRange => Mathf.Max(0f, pickupRange);
-    public float FinalExperienceMultiplier => Mathf.Max(0f, experienceMultiplier + runtimeTomeExperienceBonusPct);
+    public float FinalExperienceMultiplier => Mathf.Max(0f, experienceMultiplier + runtimeTomeExperienceBonusPct + runtimeItemExperienceBonusPct);
     public float FinalProjectileSpeedMultiplier => Mathf.Max(0f, 1f + bonusProjSpeedPct + runtimeTomeProjectileSpeedBonusPct);
-
+    public float FinalBorgarDropChance => Mathf.Clamp01(runtimeItemBorgarDropChancePct);
+    public float FinalLuck => Mathf.Max(0f, runtimeItemLuckPct);
+    public float FinalDodgeChance => Mathf.Clamp01(dodgeChance + runtimeItemDodgeChancePct);
+    public float FinalHighHealthEnemyDamageBonus => Mathf.Max(0f, runtimeItemHighHealthDamageBonusPct);
+    public float FinalHighHealthEnemyDamageThreshold => Mathf.Clamp01(runtimeItemHighHealthDamageThreshold);
+    public float FinalPowerupDropChance => Mathf.Clamp01(powerupDropChance);
+    public float FinalPowerupMultiplier => Mathf.Max(1f, powerupMultiplier);
     public float FinalDamageMultiplier => Mathf.Max(0f, 1f + bonusAtkPct + runtimeTomeDamageBonusPct);
     public float TomeDamageBonusPct => runtimeTomeDamageBonusPct;
     public float TomeSizeBonusPct => runtimeTomeSizeBonusPct;
@@ -162,6 +179,17 @@ public class PlayerBaseStats : ScriptableObject
     public float TomeCooldownBonusPct => runtimeTomeCooldownBonusPct;
     public float TomeProjectileSpeedBonusPct => runtimeTomeProjectileSpeedBonusPct;
     public float TomeExperienceBonusPct => runtimeTomeExperienceBonusPct;
+    [System.NonSerialized] private float runtimeItemBorgarDropChancePct;
+    [System.NonSerialized] private float runtimeItemCriticalDamageBonus;
+    [System.NonSerialized] private float runtimeItemLuckPct;
+    [System.NonSerialized] private float runtimeItemExperienceBonusPct;
+    [System.NonSerialized] private float runtimeItemMaxHealthFlat;
+    [System.NonSerialized] private float runtimeItemMaxHealthBonusPct;
+    [System.NonSerialized] private float runtimeItemDodgeChancePct;
+    [System.NonSerialized] private float runtimeItemAttackSpeedBonusPct;
+    [System.NonSerialized] private float runtimeItemHighHealthDamageBonusPct;
+    [System.NonSerialized] private float runtimeItemHighHealthDamageThreshold = 0.9f;
+    [System.NonSerialized] private float runtimeItemMoveSpeedBonusPct;
 
     public void SetRuntimeTomeBonuses(
         float damageBonusPct,
@@ -187,4 +215,37 @@ public class PlayerBaseStats : ScriptableObject
     {
         SetRuntimeTomeBonuses(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f);
     }
+
+    public void SetRuntimeItemBonuses(
+        float borgarDropChancePct,
+        float criticalDamageBonus,
+        float luckPct,
+        float experienceBonusPct,
+        float maxHealthFlat,
+        float maxHealthBonusPct,
+        float dodgeChancePct,
+        float attackSpeedBonusPct,
+        float highHealthDamageBonusPct,
+        float highHealthDamageThreshold,
+        float moveSpeedBonusPct)
+    {
+        runtimeItemBorgarDropChancePct = Mathf.Max(0f, borgarDropChancePct);
+        runtimeItemCriticalDamageBonus = Mathf.Max(0f, criticalDamageBonus);
+        runtimeItemLuckPct = Mathf.Max(0f, luckPct);
+        runtimeItemExperienceBonusPct = Mathf.Max(0f, experienceBonusPct);
+        runtimeItemMaxHealthFlat = Mathf.Max(0f, maxHealthFlat);
+        runtimeItemMaxHealthBonusPct = Mathf.Max(0f, maxHealthBonusPct);
+        runtimeItemDodgeChancePct = Mathf.Max(0f, dodgeChancePct);
+        runtimeItemAttackSpeedBonusPct = Mathf.Max(0f, attackSpeedBonusPct);
+        runtimeItemHighHealthDamageBonusPct = Mathf.Max(0f, highHealthDamageBonusPct);
+        runtimeItemHighHealthDamageThreshold = Mathf.Clamp01(highHealthDamageThreshold);
+        runtimeItemMoveSpeedBonusPct = Mathf.Max(0f, moveSpeedBonusPct);
+    }
+
+    public void ClearRuntimeItemBonuses()
+    {
+        SetRuntimeItemBonuses(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0.9f, 0f);
+    }
+
+
 }

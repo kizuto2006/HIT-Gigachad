@@ -6981,7 +6981,7 @@ MonoBehaviour:
         InputAction: {fileID: 0}
         Gain: 1
         LegacyInput: Mouse Y
-        LegacyGain: -100
+        LegacyGain: 100
         CancelDeltaTime: 0
       InputValue: 0
       Driver:

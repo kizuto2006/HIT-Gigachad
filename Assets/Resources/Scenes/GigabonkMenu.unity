@@ -25027,6 +25027,7 @@ MonoBehaviour:
   bossAppearSound: {fileID: 8300000, guid: 65b398d1f5bf6fa4f8c34d90e1329de5, type: 3}
   jumpSound: {fileID: 8300000, guid: 0456a69c765f63c42bc0053544830a1d, type: 3}
   takeDamageSound: {fileID: 8300000, guid: 393cdead0759dee4d802248860258cab, type: 3}
+  loseSound: {fileID: 8300000, guid: 9bff15d9f7ce1d740ab3d90b47747268, type: 3}
   warningSound: {fileID: 8300000, guid: 1fd63fe75214d744991e28599e425cb5, type: 3}
   sfxSource: {fileID: 1383810419}
   selectableScanInterval: 0.25

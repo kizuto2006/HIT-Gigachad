@@ -64,6 +64,20 @@ public class MenuButtonAnimator : MonoBehaviour,
         SetNormalState(true);
     }
 
+    public void RefreshRestingPosition()
+    {
+        if(rectTransform == null)
+            rectTransform = (RectTransform)transform;
+
+        if(background == null)
+            background = GetComponent<Image>();
+
+        restingPosition = rectTransform.anchoredPosition;
+        targetPosition = restingPosition;
+        targetScale = Vector3.one;
+        targetColour = normalColour;
+    }
+
     private void Update()
     {
         float t = 1f - Mathf.Exp(-animationSpeed * Time.unscaledDeltaTime);

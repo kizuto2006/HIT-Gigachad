@@ -5,7 +5,8 @@ using UnityEngine;
 public enum UpgradeOptionType
 {
     Weapon,
-    Tome
+    Tome,
+    Item
 }
 
 public enum WeaponStatKind
@@ -64,6 +65,7 @@ public class UpgradeOption
     public UpgradeOptionType type;
     public WeaponData weapon;
     public TomeData tome;
+    public ItemData item;
     public bool isNewItem;
     public int targetLevel;
     public string description;
@@ -71,16 +73,24 @@ public class UpgradeOption
     public WeaponStatsSnapshot nextStats;
     public float currentTomeBonus;
     public float nextTomeBonus;
+    public WeaponRarity rarity = WeaponRarity.Common;
+    private bool rarityApplied;
+
 
     public bool IsWeapon => type == UpgradeOptionType.Weapon;
     public bool IsTome => type == UpgradeOptionType.Tome;
+    public bool IsItem => type == UpgradeOptionType.Item;
     public bool isNewWeapon => IsWeapon && isNewItem;
+    public bool IsNewEquipment => (IsWeapon || IsTome) && isNewItem;
     public int CurrentLevel => IsWeapon ? currentStats.level : Mathf.Max(0, targetLevel - 1);
-    public Sprite Icon => IsWeapon ? weapon != null ? weapon.icon : null : tome != null ? tome.icon : null;
-    public string DisplayName => IsWeapon ? weapon != null ? weapon.weaponName : string.Empty : tome != null ? tome.tomeName : string.Empty;
-    public WeaponRarity Rarity => IsWeapon && weapon != null ? weapon.rarity : WeaponRarity.Common;
-    public int MaxLevel => IsWeapon ? weapon != null ? weapon.maxLevel : 0 : tome != null ? tome.maxLevel : 0;
-    public bool IsMaxLevel => targetLevel >= MaxLevel;
+    public Sprite Icon => IsWeapon ? (weapon != null ? weapon.icon : null) : IsTome ? (tome != null ? tome.icon : null) : item != null ? item.icon : null;
+    public string DisplayName => IsWeapon ? (weapon != null ? weapon.weaponName : string.Empty) : IsTome ? (tome != null ? tome.tomeName : string.Empty) : item != null ? item.itemName : string.Empty;
+    public WeaponRarity Rarity => rarity;
+    public float RarityMultiplier => IsNewEquipment ? 1f : UpgradeRarityUtility.GetBuffMultiplier(rarity);
+    public bool HasRarity => !IsNewEquipment && rarityApplied;
+    public string RarityDisplayName => HasRarity ? UpgradeRarityUtility.GetDisplayName(rarity) : string.Empty;
+    public int MaxLevel => IsWeapon ? (weapon != null ? weapon.maxLevel : 0) : IsTome ? (tome != null ? tome.maxLevel : 0) : int.MaxValue;
+    public bool IsMaxLevel => (IsWeapon || IsTome) && targetLevel >= MaxLevel;
 
     public static UpgradeOption CreateNewWeapon(WeaponData data, PlayerBaseStats playerStats)
     {
@@ -105,8 +115,8 @@ public class UpgradeOption
             weapon = behaviour.data,
             isNewItem = false,
             targetLevel = nextLevel,
-            currentStats = behaviour.data.GetStatsAtLevel(behaviour.CurrentLevel, behaviour.PlayerStats),
-            nextStats = behaviour.data.GetStatsAtLevel(nextLevel, behaviour.PlayerStats),
+            currentStats = behaviour.GetCurrentStatsSnapshot(),
+            nextStats = behaviour.GetStatsSnapshotAtLevel(nextLevel),
             description = behaviour.data.description
         };
     }
@@ -125,7 +135,10 @@ public class UpgradeOption
         };
     }
 
-    public static UpgradeOption CreateTomeLevelUp(TomeData data, int currentLevel)
+    public static UpgradeOption CreateTomeLevelUp(
+        TomeData data,
+        int currentLevel,
+        float currentExtraBonus = 0f)
     {
         int nextLevel = Mathf.Min(currentLevel + 1, data.maxLevel);
         return new UpgradeOption
@@ -134,11 +147,83 @@ public class UpgradeOption
             tome = data,
             isNewItem = false,
             targetLevel = nextLevel,
-            currentTomeBonus = data.GetBonusAtLevel(currentLevel),
-            nextTomeBonus = data.GetBonusAtLevel(nextLevel),
+            currentTomeBonus = data.GetBonusAtLevel(currentLevel) + currentExtraBonus,
+            nextTomeBonus = data.GetBonusAtLevel(nextLevel) + currentExtraBonus,
             description = data.description
         };
     }
+
+public static UpgradeOption CreateNewItem(ItemData data)
+    {
+        return new UpgradeOption
+        {
+            type = UpgradeOptionType.Item,
+            item = data,
+            isNewItem = true,
+            targetLevel = 1,
+            description = data != null ? data.description : string.Empty
+        };
+    }
+
+public static UpgradeOption CreateItemStack(ItemData data, int currentStackCount)
+    {
+        return new UpgradeOption
+        {
+            type = UpgradeOptionType.Item,
+            item = data,
+            isNewItem = false,
+            targetLevel = Mathf.Max(0, currentStackCount) + 1,
+            description = data != null ? data.description : string.Empty
+        };
+    }
+
+    public void ApplyRarity(WeaponRarity selectedRarity)
+    {
+        if (rarityApplied || IsNewEquipment)
+            return;
+
+        rarity = selectedRarity;
+        rarityApplied = true;
+        float multiplier = RarityMultiplier;
+
+        if (IsWeapon)
+        {
+            nextStats.damage = ScaleUpgrade(currentStats.damage, nextStats.damage, multiplier);
+            nextStats.crit = Mathf.Clamp01(ScaleUpgrade(currentStats.crit, nextStats.crit, multiplier));
+            nextStats.cooldown = Mathf.Max(
+                0.05f,
+                isNewItem
+                    ? nextStats.cooldown / multiplier
+                    : ScaleUpgrade(currentStats.cooldown, nextStats.cooldown, multiplier));
+            nextStats.size = ScaleUpgrade(currentStats.size, nextStats.size, multiplier);
+            nextStats.projectileSpeed = ScaleUpgrade(
+                currentStats.projectileSpeed,
+                nextStats.projectileSpeed,
+                multiplier);
+            nextStats.projectileCount = Mathf.Max(
+                nextStats.projectileCount,
+                Mathf.RoundToInt(ScaleUpgrade(
+                    currentStats.projectileCount,
+                    nextStats.projectileCount,
+                    multiplier)));
+            nextStats.knockback = ScaleUpgrade(
+                currentStats.knockback,
+                nextStats.knockback,
+                multiplier);
+        }
+        else if (IsTome)
+        {
+            nextTomeBonus = ScaleUpgrade(currentTomeBonus, nextTomeBonus, multiplier);
+        }
+    }
+
+    private static float ScaleUpgrade(float current, float next, float multiplier)
+    {
+        return current + (next - current) * multiplier;
+    }
+
+
+
 
     public List<WeaponStatChange> GetStatChanges(bool includeUnchanged = false)
     {
@@ -149,6 +234,9 @@ public class UpgradeOption
                 AddChange(changes, WeaponStatKind.TomeBonus, GetTomeStatLabel(tome.statType), currentTomeBonus, nextTomeBonus, false, true, false, includeUnchanged);
             return changes;
         }
+
+        if (IsItem)
+            return changes;
 
         AddChange(changes, WeaponStatKind.Damage, "DAMAGE", currentStats.damage, nextStats.damage, false, false, false, includeUnchanged);
         AddChange(changes, WeaponStatKind.CriticalChance, "CRIT", currentStats.crit, nextStats.crit, false, true, false, includeUnchanged);
@@ -178,6 +266,12 @@ public class UpgradeOption
 
     public string GetDisplayDescription()
     {
+        if (IsItem && item != null)
+        {
+            string effectLabel = GetItemEffectLabel(item.effectType);
+            return $"{item.description}\nSTACK: x{targetLevel}  {effectLabel}: {item.GetFormattedValueAtStackCount(targetLevel)}";
+        }
+
         List<WeaponStatChange> changes = GetStatChanges();
         if (changes.Count == 0)
             return description ?? string.Empty;
@@ -190,6 +284,24 @@ public class UpgradeOption
         }
 
         return string.Join("\n", lines);
+    }
+
+    private static string GetItemEffectLabel(ItemEffectType effectType)
+    {
+        switch (effectType)
+        {
+            case ItemEffectType.BorgarDropChance: return "BORGAR DROP";
+            case ItemEffectType.CriticalDamage: return "CRIT DAMAGE";
+            case ItemEffectType.Luck: return "LUCK";
+            case ItemEffectType.ExperienceGain: return "XP GAIN";
+            case ItemEffectType.MaximumHealth: return "MAX HEALTH";
+            case ItemEffectType.DodgeChance: return "DODGE";
+            case ItemEffectType.AttackSpeed: return "ATTACK SPEED";
+            case ItemEffectType.Healing: return "HEALING";
+            case ItemEffectType.HighHealthEnemyDamage: return "HIGH-HP DAMAGE";
+            case ItemEffectType.MovementSpeed: return "MOVE SPEED";
+            default: return "EFFECT";
+        }
     }
 
     private static string GetTomeStatLabel(TomeStatType statType)

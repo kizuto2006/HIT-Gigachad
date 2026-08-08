@@ -17,6 +17,8 @@ public sealed class EnemySystemsEditModeTests
         SetPublicField(spawn, "groupSizeStepSeconds", 30f);
         SetPublicField(spawn, "groupSizeIncreasePerStep", 1);
         SetPublicField(spawn, "maximumGroupSize", 10);
+        SetPublicField(spawn, "openingGroupSizeMultiplier", 1f);
+        SetPublicField(spawn, "openingSpawnDuration", 0f);
 
         try
         {

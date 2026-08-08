@@ -25,4 +25,6 @@ public class EnemyData : ScriptableObject
     [Header("── Rewards ──")]
     [Tooltip("Lượng XP enemy drop khi chết.")]
     public int xpReward = 5;
+    [Tooltip("Lượng vàng cộng trực tiếp cho người chơi khi enemy chết.")]
+    [Min(0)] public int coinReward = 1;
 }

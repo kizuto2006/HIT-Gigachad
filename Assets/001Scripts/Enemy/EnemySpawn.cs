@@ -15,6 +15,7 @@ public class EnemySpawn : MonoBehaviour
     {
         public GameObject prefab;
         [Min(0f)] public float earlyWeight = 1f;
+        [Min(0f)] public float midWeight = 1f;
         [Min(0f)] public float lateWeight = 1f;
     }
     [Header("References")]
@@ -26,8 +27,9 @@ public class EnemySpawn : MonoBehaviour
     [Header("Enemy Mix Over Time")]
     [Tooltip("Weighted enemy selection. Falls back to the legacy prefab fields when empty.")]
     public EnemySpawnType[] enemyTypes;
-    [Min(0f)] public float enemyMixRampStart = 60f;
+    [Min(0f)] public float enemyMixRampStart = 120f;
     [Min(0.1f)] public float enemyMixTransitionDuration = 30f;
+    [Min(0f)] public float enemyMixLateRampStart = 240f;
 
     [Header("Spawn Area")]
     [Min(MinimumAllowedSpawnRadius)] public float minSpawnRadius = MinimumAllowedSpawnRadius;
@@ -46,7 +48,7 @@ public class EnemySpawn : MonoBehaviour
     [Min(1)] public int startingMaxGroupSize = 2;
     [Min(0.1f)] public float groupSizeStepSeconds = 15f;
     [Min(0)] public int groupSizeIncreasePerStep = 1;
-    [Min(1)] public int maximumGroupSize = 10;
+    [Min(1)] public int maximumGroupSize = 6;
     [Tooltip("Normal spawn groups are reduced by this multiplier during the opening period. Raid group sizes are unaffected.")]
     [Range(0.01f, 1f)] public float openingGroupSizeMultiplier = 0.5f;
     [Tooltip("Duration of the reduced normal spawn groups. Elite enemies cannot appear during this period.")]
@@ -55,6 +57,10 @@ public class EnemySpawn : MonoBehaviour
     [Header("Spawn Timing")]
     [Tooltip("Time between enemy groups.")]
     [Min(0.05f)] public float groupInterval = 2.25f;
+    [Tooltip("Duration from the start of the run where normal groups spawn more frequently.")]
+    [Min(0f)] public float earlySpawnBoostDuration = 120f;
+    [Tooltip("Multiplier applied to groupInterval during the early spawn boost. 0.75 means 25% less waiting between groups.")]
+    [Range(0.1f, 1f)] public float earlySpawnIntervalMultiplier = 0.75f;
     [Tooltip("Maximum active enemies allowed at once.")]
     [Min(1)] public int maxActiveEnemies = 300;
 
@@ -62,15 +68,23 @@ public class EnemySpawn : MonoBehaviour
     [Tooltip("Time between the start of each raid wave.")]
     [Min(1f)] public float raidInterval = 240f;
     [Tooltip("How long each raid wave lasts.")]
-    [Min(0.1f)] public float raidDuration = 60f;
+    [Min(0.1f)] public float raidDuration = 30f;
     [Tooltip("Time between raid bursts.")]
-    [Min(0.1f)] public float raidBurstInterval = 3f;
-    [Min(1)] public int raidMinGroupSize = 7;
-    [Min(1)] public int raidMaxGroupSize = 15;
+    [Min(0.1f)] public float raidBurstInterval = 2f;
+    [Min(1)] public int raidMinGroupSize = 10;
+    [Min(1)] public int raidMaxGroupSize = 12;
 
     [Header("Pool")]
     [Tooltip("Số enemy được tạo sẵn khi bắt đầu scene.")]
     [Min(0)] public int initialPoolSize = 100;
+
+    [Header("Out-of-Bounds Cleanup")]
+    [Tooltip("Enemy sẽ được trả về pool nếu khoảng cách ngang tới Player vượt quá giá trị này (m).")]
+    [Min(1f)] public float maxEnemyDistanceFromPlayer = 100f;
+    [Tooltip("Enemy sẽ được trả về pool nếu thấp hơn Player quá khoảng cách này (m).")]
+    [Min(1f)] public float maxEnemyDropBelowPlayer = 40f;
+    [Tooltip("Khoảng thời gian giữa hai lần kiểm tra enemy bị rơi hoặc đi quá xa.")]
+    [Min(0.05f)] public float outOfBoundsCheckInterval = 0.25f;
 
     [Header("Spawn Emergence")]
     [Tooltip("Độ sâu quái bắt đầu ở dưới mặt đất.")]
@@ -107,12 +121,18 @@ public class EnemySpawn : MonoBehaviour
     private Coroutine spawnRoutine;
     private Coroutine raidRoutine;
     private float nextRaidTime;
+    private float nextOutOfBoundsCheckTime;
     private RaidAnnouncementUI raidAnnouncementUI;
+    private bool musicDuckActive;
+    private readonly List<GameObject> outOfBoundsEnemies = new List<GameObject>(64);
 
     public bool IsRaidActive => isRaidActive;
 
     private void Start()
     {
+        minSpawnRadius = Mathf.Max(MinimumAllowedSpawnRadius, minSpawnRadius);
+        spawnRadius = Mathf.Max(minSpawnRadius, spawnRadius);
+
         if (!HasAnyEnemyPrefab() || playerTransform == null)
         {
             Debug.LogError("[EnemySpawn] Cần gán ít nhất một Enemy Prefab và Player Transform.", this);
@@ -138,6 +158,7 @@ public class EnemySpawn : MonoBehaviour
     private void Update()
     {
         elapsedTime += Time.deltaTime;
+        CleanupOutOfBoundsEnemies();
 
         if (enemyPools.Count > 0)
         {
@@ -172,6 +193,7 @@ public class EnemySpawn : MonoBehaviour
             raidRoutine = null;
         }
 
+        ReleaseMusicDuck();
         isRaidActive = false;
     }
 
@@ -182,12 +204,25 @@ public class EnemySpawn : MonoBehaviour
         while (true)
         {
             SpawnGroup();
-            yield return new WaitForSeconds(groupInterval);
+            yield return new WaitForSeconds(GetCurrentGroupInterval());
         }
+    }
+
+    private float GetCurrentGroupInterval()
+    {
+        float intervalMultiplier = elapsedTime < earlySpawnBoostDuration
+            ? earlySpawnIntervalMultiplier
+            : 1f;
+        return Mathf.Max(0.05f, groupInterval * intervalMultiplier);
     }
 
     private void SpawnGroup()
     {
+        if (isRaidActive)
+        {
+            return;
+        }
+
         UpdateCurrentGroupSize();
         SpawnGroup(currentMinGroupSize, currentMaxGroupSize, false);
     }
@@ -195,11 +230,13 @@ public class EnemySpawn : MonoBehaviour
     private IEnumerator SpawnRaid()
     {
         isRaidActive = true;
+        RequestMusicDuck();
         if (raidAnnouncementUI == null)
         {
             raidAnnouncementUI = RaidAnnouncementUI.Create(transform);
         }
         raidAnnouncementUI.Show(raidDuration);
+        SoundEffectsAudioManager.Instance?.PlayWarningSound();
 
         float raidEndTime = elapsedTime + raidDuration;
 
@@ -210,7 +247,27 @@ public class EnemySpawn : MonoBehaviour
         }
 
         isRaidActive = false;
+        ReleaseMusicDuck();
         raidRoutine = null;
+    }
+
+    private void RequestMusicDuck()
+    {
+        if (musicDuckActive || MusicAudioManager.Instance == null)
+            return;
+
+        MusicAudioManager.Instance.PushMusicDuck();
+        musicDuckActive = true;
+    }
+
+    private void ReleaseMusicDuck()
+    {
+        if (!musicDuckActive)
+            return;
+
+        if (MusicAudioManager.Instance != null)
+            MusicAudioManager.Instance.PopMusicDuck();
+        musicDuckActive = false;
     }
 
     private void SpawnGroup(int minGroupSize, int maxGroupSize, bool scatterAroundPlayer)
@@ -273,6 +330,22 @@ public class EnemySpawn : MonoBehaviour
             );
             enemy.SetActive(true);
         }
+    }
+
+    /// <summary>
+    /// Test hook để spawn một nhóm enemy thông qua pool hiện tại.
+    /// </summary>
+    public int SpawnTestGroup(int groupSize, bool scatterAroundPlayer = true)
+    {
+        if (enemyPools.Count == 0 || playerTransform == null)
+        {
+            return 0;
+        }
+
+        int countBefore = GetActiveEnemyCount();
+        int requestedCount = Mathf.Max(1, groupSize);
+        SpawnGroup(requestedCount, requestedCount, scatterAroundPlayer);
+        return Mathf.Max(0, GetActiveEnemyCount() - countBefore);
     }
 
     private Vector3 EnforceMinimumSpawnDistance(Vector3 spawnPosition, Vector3 fallbackDirection)
@@ -412,10 +485,6 @@ private GameObject CreatePooledEnemy(GameObject prefab, ObjectPool<GameObject> o
             return enemyPools[Random.Range(0, enemyPools.Count)];
         }
 
-        float mixProgress = Mathf.InverseLerp(
-            enemyMixRampStart,
-            enemyMixRampStart + enemyMixTransitionDuration,
-            elapsedTime);
         float totalWeight = 0f;
 
         for (int i = 0; i < enemyTypes.Length; i++)
@@ -423,7 +492,7 @@ private GameObject CreatePooledEnemy(GameObject prefab, ObjectPool<GameObject> o
             EnemySpawnType spawnType = enemyTypes[i];
             if (spawnType != null && spawnType.prefab != null && poolByPrefab.ContainsKey(spawnType.prefab))
             {
-                totalWeight += Mathf.Lerp(spawnType.earlyWeight, spawnType.lateWeight, mixProgress);
+                totalWeight += GetEnemySpawnWeight(spawnType);
             }
         }
 
@@ -441,7 +510,7 @@ private GameObject CreatePooledEnemy(GameObject prefab, ObjectPool<GameObject> o
                 continue;
             }
 
-            selection -= Mathf.Lerp(spawnType.earlyWeight, spawnType.lateWeight, mixProgress);
+            selection -= GetEnemySpawnWeight(spawnType);
             if (selection <= 0f)
             {
                 return pool;
@@ -449,6 +518,24 @@ private GameObject CreatePooledEnemy(GameObject prefab, ObjectPool<GameObject> o
         }
 
         return enemyPools[enemyPools.Count - 1];
+    }
+
+    private float GetEnemySpawnWeight(EnemySpawnType spawnType)
+    {
+        if (elapsedTime < enemyMixLateRampStart)
+        {
+            float midProgress = Mathf.InverseLerp(
+                enemyMixRampStart,
+                enemyMixRampStart + enemyMixTransitionDuration,
+                elapsedTime);
+            return Mathf.Lerp(spawnType.earlyWeight, spawnType.midWeight, midProgress);
+        }
+
+        float lateProgress = Mathf.InverseLerp(
+            enemyMixLateRampStart,
+            enemyMixLateRampStart + enemyMixTransitionDuration,
+            elapsedTime);
+        return Mathf.Lerp(spawnType.midWeight, spawnType.lateWeight, lateProgress);
     }
 
     private static void AddUniquePrefab(List<GameObject> prefabs, GameObject prefab)
@@ -467,6 +554,61 @@ private GameObject CreatePooledEnemy(GameObject prefab, ObjectPool<GameObject> o
             count += enemyPools[i].CountActive;
         }
         return count;
+    }
+
+    private void CleanupOutOfBoundsEnemies()
+    {
+        if (playerTransform == null || poolByEnemy.Count == 0 ||
+            Time.time < nextOutOfBoundsCheckTime)
+        {
+            return;
+        }
+
+        nextOutOfBoundsCheckTime = Time.time + Mathf.Max(0.05f, outOfBoundsCheckInterval);
+
+        Vector3 playerPosition = playerTransform.position;
+        float maxDistanceSqr = Mathf.Max(1f, maxEnemyDistanceFromPlayer);
+        maxDistanceSqr *= maxDistanceSqr;
+        float minimumY = playerPosition.y - Mathf.Max(1f, maxEnemyDropBelowPlayer);
+
+        outOfBoundsEnemies.Clear();
+        foreach (GameObject enemy in poolByEnemy.Keys)
+        {
+            if (enemy == null || !enemy.activeInHierarchy)
+            {
+                continue;
+            }
+
+            EnemySpawnEmergence emergence = enemy.GetComponent<EnemySpawnEmergence>();
+            if (emergence != null && emergence.IsEmerging)
+            {
+                // Không trả enemy về pool khi nó còn đang trồi lên. Nếu làm vậy,
+                // các collider/EnemyHealth đang bị tắt trong quá trình trồi có
+                // thể không được khôi phục ở lần spawn kế tiếp.
+                continue;
+            }
+
+            Vector3 horizontalOffset = enemy.transform.position - playerPosition;
+            horizontalOffset.y = 0f;
+            bool isTooFar = horizontalOffset.sqrMagnitude > maxDistanceSqr;
+            bool isTooLow = enemy.transform.position.y < minimumY;
+
+            if (isTooFar || isTooLow)
+            {
+                outOfBoundsEnemies.Add(enemy);
+            }
+        }
+
+        for (int i = 0; i < outOfBoundsEnemies.Count; i++)
+        {
+            GameObject enemy = outOfBoundsEnemies[i];
+            if (enemy != null && enemy.activeInHierarchy)
+            {
+                ReturnEnemyToPool(enemy);
+            }
+        }
+
+        outOfBoundsEnemies.Clear();
     }
 
 
@@ -568,8 +710,13 @@ private float GetGroundHeight(Vector3 position)
         openingGroupSizeMultiplier = Mathf.Clamp(openingGroupSizeMultiplier, 0.01f, 1f);
         openingSpawnDuration = Mathf.Max(0f, openingSpawnDuration);
         groupInterval = Mathf.Max(0.05f, groupInterval);
+        earlySpawnBoostDuration = Mathf.Max(0f, earlySpawnBoostDuration);
+        earlySpawnIntervalMultiplier = Mathf.Clamp(earlySpawnIntervalMultiplier, 0.1f, 1f);
         enemyMixRampStart = Mathf.Max(0f, enemyMixRampStart);
         enemyMixTransitionDuration = Mathf.Max(0.1f, enemyMixTransitionDuration);
+        enemyMixLateRampStart = Mathf.Max(
+            enemyMixRampStart + enemyMixTransitionDuration,
+            enemyMixLateRampStart);
         maxActiveEnemies = Mathf.Max(1, maxActiveEnemies);
         raidInterval = Mathf.Max(1f, raidInterval);
         raidDuration = Mathf.Max(0.1f, raidDuration);
@@ -577,6 +724,9 @@ private float GetGroundHeight(Vector3 position)
         raidMinGroupSize = Mathf.Max(1, raidMinGroupSize);
         raidMaxGroupSize = Mathf.Max(raidMinGroupSize, raidMaxGroupSize);
         initialPoolSize = Mathf.Clamp(initialPoolSize, 0, 1000);
+        maxEnemyDistanceFromPlayer = Mathf.Max(1f, maxEnemyDistanceFromPlayer);
+        maxEnemyDropBelowPlayer = Mathf.Max(1f, maxEnemyDropBelowPlayer);
+        outOfBoundsCheckInterval = Mathf.Max(0.05f, outOfBoundsCheckInterval);
         emergenceDepth = Mathf.Max(0f, emergenceDepth);
         emergenceDuration = Mathf.Max(0.05f, emergenceDuration);
         emergenceStagger = Mathf.Max(0f, emergenceStagger);
@@ -596,6 +746,7 @@ private float GetGroundHeight(Vector3 position)
                 }
 
                 enemyTypes[i].earlyWeight = Mathf.Max(0f, enemyTypes[i].earlyWeight);
+                enemyTypes[i].midWeight = Mathf.Max(0f, enemyTypes[i].midWeight);
                 enemyTypes[i].lateWeight = Mathf.Max(0f, enemyTypes[i].lateWeight);
             }
         }
@@ -619,6 +770,8 @@ internal sealed class EnemySpawnEmergence : MonoBehaviour
     private float delay;
     private bool prepared;
     private Coroutine emergenceRoutine;
+
+    public bool IsEmerging => prepared || emergenceRoutine != null;
 
     public void Prepare(Vector3 groundPosition, float depth, float riseDuration, float startDelay)
     {
@@ -753,6 +906,9 @@ internal sealed class RaidAnnouncementUI : MonoBehaviour
     private CanvasGroup canvasGroup;
     private RectTransform bannerRect;
     private TextMeshProUGUI subtitle;
+    private TMP_FontAsset displayFont;
+    private Material displayFontMaterial;
+
     private Coroutine animationRoutine;
 
     public static RaidAnnouncementUI Create(Transform owner)
@@ -789,6 +945,7 @@ internal sealed class RaidAnnouncementUI : MonoBehaviour
         canvasGroup = GetComponent<CanvasGroup>();
         canvasGroup.alpha = 0f;
         canvasGroup.interactable = false;
+        ResolveFont();
         canvasGroup.blocksRaycasts = false;
 
         BuildInterface();
@@ -843,20 +1000,15 @@ internal sealed class RaidAnnouncementUI : MonoBehaviour
         GameObject bannerObject = new GameObject(
             "Raid Warning Banner",
             typeof(RectTransform),
-            typeof(CanvasRenderer),
-            typeof(Image));
+            typeof(CanvasRenderer));
         bannerObject.transform.SetParent(transform, false);
 
         bannerRect = bannerObject.GetComponent<RectTransform>();
-        bannerRect.anchorMin = new Vector2(0.5f, 0.5f);
-        bannerRect.anchorMax = new Vector2(0.5f, 0.5f);
-        bannerRect.pivot = new Vector2(0.5f, 0.5f);
-        bannerRect.anchoredPosition = new Vector2(0f, 90f);
-        bannerRect.sizeDelta = new Vector2(920f, 190f);
-
-        Image background = bannerObject.GetComponent<Image>();
-        background.color = new Color(0.035f, 0.008f, 0.008f, 0.88f);
-        background.raycastTarget = false;
+        bannerRect.anchorMin = new Vector2(0.5f, 1f);
+        bannerRect.anchorMax = new Vector2(0.5f, 1f);
+        bannerRect.pivot = new Vector2(0.5f, 1f);
+        bannerRect.anchoredPosition = new Vector2(0f, -125f);
+        bannerRect.sizeDelta = new Vector2(640f, 56f);
 
         TextMeshProUGUI title = CreateLabel(
             "Raid Title",
@@ -868,6 +1020,10 @@ internal sealed class RaidAnnouncementUI : MonoBehaviour
         RectTransform titleRect = title.rectTransform;
         titleRect.anchorMin = new Vector2(0.04f, 0.38f);
         titleRect.anchorMax = new Vector2(0.96f, 0.96f);
+        titleRect.offsetMin = Vector2.zero;
+        titleRect.offsetMax = Vector2.zero;
+        titleRect.anchorMin = Vector2.zero;
+        titleRect.anchorMax = Vector2.one;
         titleRect.offsetMin = Vector2.zero;
         titleRect.offsetMax = Vector2.zero;
 
@@ -883,12 +1039,13 @@ internal sealed class RaidAnnouncementUI : MonoBehaviour
         subtitleRect.anchorMax = new Vector2(0.96f, 0.43f);
         subtitleRect.offsetMin = Vector2.zero;
         subtitleRect.offsetMax = Vector2.zero;
+        subtitle.gameObject.SetActive(false);
 
         CreateAccentBar("Top Accent", bannerRect, 1f, -5f);
         CreateAccentBar("Bottom Accent", bannerRect, 0f, 5f);
     }
 
-    private static TextMeshProUGUI CreateLabel(
+    private TextMeshProUGUI CreateLabel(
         string objectName,
         Transform parent,
         string message,
@@ -905,6 +1062,9 @@ internal sealed class RaidAnnouncementUI : MonoBehaviour
 
         TextMeshProUGUI label = labelObject.GetComponent<TextMeshProUGUI>();
         label.text = message;
+        label.font = displayFont;
+        if (displayFontMaterial != null)
+            label.fontSharedMaterial = displayFontMaterial;
         label.fontSize = fontSize;
         label.fontStyle = FontStyles.Bold;
         label.color = color;
@@ -925,22 +1085,45 @@ internal sealed class RaidAnnouncementUI : MonoBehaviour
         float anchorY,
         float verticalOffset)
     {
-        GameObject barObject = new GameObject(
-            objectName,
-            typeof(RectTransform),
-            typeof(CanvasRenderer),
-            typeof(Image));
-        barObject.transform.SetParent(parent, false);
+    }
 
-        RectTransform rect = barObject.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0f, anchorY);
-        rect.anchorMax = new Vector2(1f, anchorY);
-        rect.pivot = new Vector2(0.5f, anchorY);
-        rect.anchoredPosition = new Vector2(0f, verticalOffset);
-        rect.sizeDelta = new Vector2(0f, 5f);
 
-        Image image = barObject.GetComponent<Image>();
-        image.color = new Color(1f, 0.12f, 0.035f, 0.95f);
-        image.raycastTarget = false;
+    private void ResolveFont()
+    {
+        TMP_Text[] texts = Resources.FindObjectsOfTypeAll<TMP_Text>();
+        TMP_FontAsset fallbackFont = null;
+        Material fallbackMaterial = null;
+
+        for (int i = 0; i < texts.Length; i++)
+        {
+            TMP_Text candidate = texts[i];
+            if (candidate == null || candidate.font == null || !candidate.gameObject.scene.IsValid())
+                continue;
+
+            if (fallbackFont == null)
+            {
+                fallbackFont = candidate.font;
+                fallbackMaterial = candidate.fontSharedMaterial != null
+                    ? candidate.fontSharedMaterial
+                    : candidate.font.material;
+            }
+
+            if (candidate.font.name == "SVN-Determination Sans SDF")
+            {
+                displayFont = candidate.font;
+                displayFontMaterial = candidate.fontSharedMaterial != null
+                    ? candidate.fontSharedMaterial
+                    : candidate.font.material;
+                break;
+            }
+        }
+
+        if (displayFont == null)
+        {
+            displayFont = fallbackFont != null ? fallbackFont : TMP_Settings.defaultFontAsset;
+            displayFontMaterial = fallbackMaterial != null
+                ? fallbackMaterial
+                : displayFont != null ? displayFont.material : null;
+        }
     }
 }

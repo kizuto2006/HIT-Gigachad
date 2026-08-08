@@ -24,6 +24,7 @@ MonoBehaviour:
   projectileSpeed: 42
   additionalProjectileDamageMultiplier: 0
   projectileCount: 1
+  projectileBurstInterval: 0.08
   size: 1
   displaySizeAsPercent: 1
   cooldown: 0.9
@@ -59,4 +60,4 @@ MonoBehaviour:
   attackEffectPrefab: {fileID: 5935097833217495665, guid: 94aa1dd1e5271d244b4b626b0b7d6a33, type: 3}
   projectilePrefab: {fileID: 7753384399387097922, guid: 26246e41b02688846bc84292d17e1eae, type: 3}
   attackAnimation: {fileID: 0}
-  attackSound: {fileID: 0}
+  attackSound: {fileID: 8300000, guid: 53a64b164f443d44b93c740d09cc4446, type: 3}

@@ -53,6 +53,7 @@ public class EnemyContactDamage : MonoBehaviour
         if (playerHealth == null) return;
         if (!other.CompareTag("Player")) return;
         if (data == null) return;
+        if (PlayerPowerupController.AreEnemyActionsFrozen) return;
 
         PushPlayerContinuously();
 
@@ -78,6 +79,7 @@ public class EnemyContactDamage : MonoBehaviour
     {
         if (!other.CompareTag("Player")) return;
         if (data == null || playerHealth == null) return;
+        if (PlayerPowerupController.AreEnemyActionsFrozen) return;
 
         // Gây damage ngay lập tức lần đầu chạm
         if (Time.time >= lastDamageTime + damageCooldown)

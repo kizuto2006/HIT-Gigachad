@@ -50,10 +50,7 @@ public class MeleeWeapon : WeaponBehaviour
         }
 
         // Play SFX
-        if (data.attackSound != null)
-        {
-            AudioSource.PlayClipAtPoint(data.attackSound, center);
-        }
+        PlayWeaponAttackSound(center);
     }
 
     void OnDrawGizmosSelected()

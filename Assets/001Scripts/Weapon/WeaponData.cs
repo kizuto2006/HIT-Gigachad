@@ -7,7 +7,8 @@ public enum WeaponAttackType
     BowShot,
     GunShot,
     RadialPulse,
-    Custom
+    Custom,
+    Firewalker
 }
 
 [System.Flags]

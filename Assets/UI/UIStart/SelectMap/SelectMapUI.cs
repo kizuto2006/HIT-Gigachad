@@ -36,6 +36,7 @@ public class SelectMapUI : MonoBehaviour
         if(menuFlow != null)
             menuFlow.ExitMenu();
 
+        MusicAudioManager.Instance?.StopMenuMusic();
         SceneManager.LoadScene("DesertArena");
     }
 

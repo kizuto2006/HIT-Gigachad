@@ -7,14 +7,6 @@ using UnityEngine.UI;
 
 public class SelectCharacterUI : MonoBehaviour
 {
-    private static readonly string[] CharacterNames =
-    {
-        "GIGACHAD",
-        "MAGICFOX",
-        "KNIGHT",
-        "COWBOY"
-    };
-
     [Header("Panel")]
     [SerializeField] private GameObject panelSelectCharacter;
 
@@ -27,27 +19,27 @@ public class SelectCharacterUI : MonoBehaviour
     [SerializeField] private TextMeshProUGUI textName;
     [SerializeField] private TextMeshProUGUI textDescription;
 
-    private readonly List<Button> characterButtons = new List<Button>();
+    private readonly List<Button> weaponButtons = new List<Button>();
     private readonly List<GameObject> selectionAccents = new List<GameObject>();
+    private WeaponData[] startingWeapons;
 
     private GameObject infoCharacterRoot;
-    private Image infoPortrait;
+    private Image infoWeaponIcon;
     private GameObject weaponInfoRoot;
-    private Sprite gigachadPortrait;
-    private Color gigachadPortraitColor;
     private TextMeshProUGUI lockedQuestionMark;
-    private int selectedCharacterIndex = -1;
+    private WeaponData selectedWeapon;
     private bool isStartingGame;
 
     private void Awake()
     {
-        CacheCharacterSlots();
+        LoadStartingWeapons();
+        CacheWeaponSlots();
         CacheInfoPanel();
 
-        for (int i = 0; i < characterButtons.Count; i++)
+        for (int i = 0; i < weaponButtons.Count; i++)
         {
-            int characterIndex = i;
-            characterButtons[i].onClick.AddListener(() => SelectCharacter(characterIndex));
+            int weaponIndex = i;
+            weaponButtons[i].onClick.AddListener(() => SelectWeapon(weaponIndex));
         }
 
         if (btnConfirm != null)
@@ -59,11 +51,28 @@ public class SelectCharacterUI : MonoBehaviour
         ClearSelection();
     }
 
-    private void CacheCharacterSlots()
+    private void LoadStartingWeapons()
     {
-        Transform slotRoot = transform.Find("SelectCharacter/BackGroundCharacter/CharacterSlot");
+        startingWeapons = Resources.LoadAll<WeaponData>("Weapons");
+        System.Array.Sort(startingWeapons, (left, right) =>
+            string.Compare(left.weaponName, right.weaponName, System.StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void CacheWeaponSlots()
+    {
+        Transform slotRoot = transform.Find("SelectStartingWeapon/BackGroundWeapon/WeaponSlot");
+        if (slotRoot == null)
+            slotRoot = transform.Find("SelectCharacter/BackGroundCharacter/CharacterSlot");
         if (slotRoot == null)
             return;
+
+        while (slotRoot.childCount < startingWeapons.Length && slotRoot.childCount > 0)
+        {
+            Transform template = slotRoot.GetChild(Mathf.Min(1, slotRoot.childCount - 1));
+            GameObject clone = Instantiate(template.gameObject, slotRoot);
+            clone.name = "Weapon (" + (slotRoot.childCount - 1) + ")";
+            clone.SetActive(true);
+        }
 
         Material sharedSlotTextMaterial = null;
 
@@ -74,24 +83,27 @@ public class SelectCharacterUI : MonoBehaviour
             if (button == null)
                 continue;
 
-            if (characterButtons.Count >= CharacterNames.Length)
+            if (weaponButtons.Count >= startingWeapons.Length)
             {
                 slot.gameObject.SetActive(false);
                 continue;
             }
 
-            characterButtons.Add(button);
+            int weaponIndex = weaponButtons.Count;
+            WeaponData weapon = startingWeapons[weaponIndex];
+            slot.gameObject.name = "Weapon (" + weaponIndex + ")";
+            slot.gameObject.SetActive(true);
+            weaponButtons.Add(button);
             if (button.GetComponent<MenuButtonAnimator>() == null)
                 button.gameObject.AddComponent<MenuButtonAnimator>();
 
-            // Locked characters must still receive clicks so their locked details can be shown.
             button.interactable = true;
             Transform accent = slot.Find("StyleAccent");
             selectionAccents.Add(accent != null ? accent.gameObject : null);
 
             Transform avatar = slot.Find("GigachadAvatarDisplay");
             if (avatar != null)
-                avatar.gameObject.SetActive(characterButtons.Count == 1);
+                avatar.gameObject.SetActive(false);
 
             // Some cloned slots contain an old full-size Border graphic that renders
             // over the name plate even when its image color is transparent.
@@ -102,10 +114,18 @@ public class SelectCharacterUI : MonoBehaviour
             TextMeshProUGUI slotName = slot.GetComponentInChildren<TextMeshProUGUI>(true);
             if (slotName != null)
             {
-                slotName.text = CharacterNames[characterButtons.Count - 1];
+                slotName.text = string.IsNullOrWhiteSpace(weapon.weaponName)
+                    ? weapon.name.ToUpperInvariant()
+                    : weapon.weaponName.ToUpperInvariant();
                 slotName.gameObject.SetActive(true);
                 slotName.enabled = true;
                 slotName.color = Color.white;
+                slotName.enableAutoSizing = true;
+                slotName.fontSizeMin = 12f;
+                slotName.fontSizeMax = 20f;
+                slotName.textWrappingMode = TextWrappingModes.NoWrap;
+                slotName.overflowMode = TextOverflowModes.Ellipsis;
+                slotName.margin = new Vector4(4f, 0f, 4f, 0f);
 
                 if (sharedSlotTextMaterial == null)
                     sharedSlotTextMaterial = slotName.fontSharedMaterial;
@@ -114,17 +134,51 @@ public class SelectCharacterUI : MonoBehaviour
 
                 slotName.ForceMeshUpdate();
             }
+
+            CreateOrGetSlotIcon(slot, weapon.icon);
         }
+    }
+
+    private static void CreateOrGetSlotIcon(Transform slot, Sprite icon)
+    {
+        Transform iconTransform = slot.Find("WeaponIcon");
+        GameObject iconObject;
+        if (iconTransform == null)
+        {
+            iconObject = new GameObject("WeaponIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            iconObject.transform.SetParent(slot, false);
+            iconObject.transform.SetAsFirstSibling();
+        }
+        else
+        {
+            iconObject = iconTransform.gameObject;
+        }
+
+        RectTransform iconRect = iconObject.GetComponent<RectTransform>();
+        iconRect.anchorMin = new Vector2(0.5f, 0.5f);
+        iconRect.anchorMax = new Vector2(0.5f, 0.5f);
+        iconRect.anchoredPosition = new Vector2(0f, 10f);
+        iconRect.sizeDelta = new Vector2(72f, 72f);
+
+        Image iconImage = iconObject.GetComponent<Image>();
+        iconImage.sprite = icon;
+        iconImage.color = Color.white;
+        iconImage.preserveAspect = true;
+        iconImage.raycastTarget = false;
     }
 
     private void CacheInfoPanel()
     {
-        Transform infoTransform = transform.Find("InfoCharacter");
+        Transform infoTransform = transform.Find("InfoWeapon");
+        if (infoTransform == null)
+            infoTransform = transform.Find("InfoCharacter");
         infoCharacterRoot = infoTransform != null ? infoTransform.gameObject : null;
         if (infoTransform == null)
             return;
 
-        Transform nameTransform = infoTransform.Find("Info/textNameCharacter");
+        Transform nameTransform = infoTransform.Find("Info/textNameWeapon");
+        if (nameTransform == null)
+            nameTransform = infoTransform.Find("Info/textNameCharacter");
         if (nameTransform != null)
             textName = nameTransform.GetComponent<TextMeshProUGUI>();
 
@@ -132,18 +186,23 @@ public class SelectCharacterUI : MonoBehaviour
         if (descriptionTransform != null)
             textDescription = descriptionTransform.GetComponent<TextMeshProUGUI>();
 
-        Transform portraitTransform = infoTransform.Find("Info/IconCharacter");
+        Transform portraitTransform = infoTransform.Find("Info/IconWeapon");
+        if (portraitTransform == null)
+            portraitTransform = infoTransform.Find("Info/IconCharacter");
         if (portraitTransform == null)
             return;
 
-        infoPortrait = portraitTransform.GetComponent<Image>();
+        infoWeaponIcon = portraitTransform.GetComponent<Image>();
+        ConfigureInfoPanelLayout();
         Transform weaponInfoTransform = infoTransform.Find("Info/WeaponInfo");
         weaponInfoRoot = weaponInfoTransform != null ? weaponInfoTransform.gameObject : null;
-        if (infoPortrait != null)
-        {
-            gigachadPortrait = infoPortrait.sprite != null ? infoPortrait.sprite : Icon;
-            gigachadPortraitColor = infoPortrait.color;
-        }
+
+        Transform skinInfo = infoTransform.Find("Info/SkinInfo");
+        if (skinInfo != null)
+            skinInfo.gameObject.SetActive(false);
+
+        if (weaponInfoRoot != null)
+            weaponInfoRoot.SetActive(false);
 
         Transform existingQuestion = portraitTransform.Find("LockedQuestionMark");
         if (existingQuestion != null)
@@ -172,11 +231,110 @@ public class SelectCharacterUI : MonoBehaviour
         lockedQuestionMark.raycastTarget = false;
     }
 
-    public void OnClickButonConfirm()
+    private void ConfigureInfoPanelLayout()
     {
-        if (selectedCharacterIndex != 0 || isStartingGame)
+        RectTransform iconRect = infoWeaponIcon != null ? infoWeaponIcon.rectTransform : null;
+        RectTransform nameRect = textName != null ? textName.rectTransform : null;
+        RectTransform descriptionRect = textDescription != null ? textDescription.rectTransform : null;
+
+        SetInfoRect(iconRect, new Vector2(-155f, 175f), new Vector2(140f, 140f));
+        SetInfoRect(nameRect, new Vector2(75f, 220f), new Vector2(300f, 70f));
+        SetInfoRect(descriptionRect, new Vector2(75f, 82f), new Vector2(300f, 180f));
+
+        EnsureInfoFrame(iconRect, "WeaponIconFrame", new Vector2(18f, 18f));
+        EnsureInfoFrame(nameRect, "WeaponNameFrame", new Vector2(14f, 10f));
+        EnsureInfoFrame(descriptionRect, "WeaponDescriptionFrame", new Vector2(14f, 12f));
+
+        if (infoWeaponIcon != null)
+        {
+            infoWeaponIcon.preserveAspect = true;
+            infoWeaponIcon.raycastTarget = false;
+        }
+
+        if (textName != null)
+        {
+            textName.enableAutoSizing = true;
+            textName.fontSizeMin = 20f;
+            textName.fontSizeMax = 34f;
+            textName.textWrappingMode = TextWrappingModes.NoWrap;
+            textName.overflowMode = TextOverflowModes.Ellipsis;
+            textName.alignment = TextAlignmentOptions.Center;
+            textName.margin = new Vector4(10f, 5f, 10f, 5f);
+            textName.raycastTarget = false;
+        }
+
+        if (textDescription != null)
+        {
+            textDescription.enableAutoSizing = true;
+            textDescription.fontSizeMin = 14f;
+            textDescription.fontSizeMax = 23f;
+            textDescription.textWrappingMode = TextWrappingModes.Normal;
+            textDescription.overflowMode = TextOverflowModes.Ellipsis;
+            textDescription.alignment = TextAlignmentOptions.TopLeft;
+            textDescription.margin = new Vector4(10f, 9f, 10f, 9f);
+            textDescription.raycastTarget = false;
+        }
+    }
+
+    private static void SetInfoRect(RectTransform rect, Vector2 position, Vector2 size)
+    {
+        if (rect == null)
             return;
 
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = size;
+    }
+
+    private static void EnsureInfoFrame(RectTransform content, string frameName, Vector2 padding)
+    {
+        if (content == null || content.parent == null)
+            return;
+
+        Transform parent = content.parent;
+        Transform existingFrame = parent.Find(frameName);
+        GameObject frameObject;
+        if (existingFrame == null)
+        {
+            frameObject = new GameObject(
+                frameName,
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image),
+                typeof(Outline));
+            frameObject.transform.SetParent(parent, false);
+        }
+        else
+        {
+            frameObject = existingFrame.gameObject;
+        }
+
+        RectTransform frameRect = frameObject.GetComponent<RectTransform>();
+        frameRect.anchorMin = content.anchorMin;
+        frameRect.anchorMax = content.anchorMax;
+        frameRect.pivot = content.pivot;
+        frameRect.anchoredPosition = content.anchoredPosition;
+        frameRect.sizeDelta = content.sizeDelta + padding;
+        frameObject.transform.SetSiblingIndex(content.GetSiblingIndex());
+
+        Image frameImage = frameObject.GetComponent<Image>();
+        frameImage.color = new Color(0.055f, 0.075f, 0.085f, 0.96f);
+        frameImage.raycastTarget = false;
+
+        Outline frameOutline = frameObject.GetComponent<Outline>();
+        frameOutline.effectColor = new Color(0.22f, 0.72f, 0.82f, 0.95f);
+        frameOutline.effectDistance = new Vector2(3f, -3f);
+        frameOutline.useGraphicAlpha = false;
+    }
+
+    public void OnClickButonConfirm()
+    {
+        if (selectedWeapon == null || isStartingGame)
+            return;
+
+        StartingWeaponSelection.Select(selectedWeapon);
         isStartingGame = true;
 
         if (btnConfirm != null)
@@ -208,13 +366,12 @@ public class SelectCharacterUI : MonoBehaviour
             ClearSelection();
     }
 
-    private void SelectCharacter(int characterIndex)
+    private void SelectWeapon(int weaponIndex)
     {
-        if (characterIndex < 0 || characterIndex >= CharacterNames.Length)
+        if (weaponIndex < 0 || weaponIndex >= startingWeapons.Length)
             return;
 
-        selectedCharacterIndex = characterIndex;
-        bool isGigachad = characterIndex == 0;
+        selectedWeapon = startingWeapons[weaponIndex];
 
         if (infoCharacterRoot != null)
             infoCharacterRoot.SetActive(true);
@@ -222,39 +379,40 @@ public class SelectCharacterUI : MonoBehaviour
         for (int i = 0; i < selectionAccents.Count; i++)
         {
             if (selectionAccents[i] != null)
-                selectionAccents[i].SetActive(i == characterIndex);
+                selectionAccents[i].SetActive(i == weaponIndex);
         }
 
         if (textName != null)
-            textName.text = CharacterNames[characterIndex];
+            textName.text = string.IsNullOrWhiteSpace(selectedWeapon.weaponName)
+                ? selectedWeapon.name.ToUpperInvariant()
+                : selectedWeapon.weaponName.ToUpperInvariant();
 
         if (textDescription != null)
         {
-            textDescription.text = isGigachad
-                ? "THE STRONGEST SURVIVOR.\nPOWERFUL, SIMPLE, UNSTOPPABLE."
-                : "LOCKED CHARACTER";
+            textDescription.text = string.IsNullOrWhiteSpace(selectedWeapon.description)
+                ? "NO DESCRIPTION AVAILABLE."
+                : selectedWeapon.description;
         }
 
-        if (infoPortrait != null)
+        if (infoWeaponIcon != null)
         {
-            infoPortrait.sprite = isGigachad ? gigachadPortrait : null;
-            infoPortrait.color = isGigachad ? gigachadPortraitColor : new Color32(64, 114, 139, 255);
+            infoWeaponIcon.sprite = selectedWeapon.icon;
+            infoWeaponIcon.color = Color.white;
+            infoWeaponIcon.preserveAspect = true;
         }
 
         if (lockedQuestionMark != null)
-            lockedQuestionMark.gameObject.SetActive(!isGigachad);
-
-        if (weaponInfoRoot != null)
-            weaponInfoRoot.SetActive(isGigachad);
+            lockedQuestionMark.gameObject.SetActive(false);
 
         if (btnConfirm != null)
-            btnConfirm.interactable = isGigachad;
+            btnConfirm.interactable = true;
     }
 
     private void ClearSelection()
     {
         isStartingGame = false;
-        selectedCharacterIndex = -1;
+        selectedWeapon = null;
+        StartingWeaponSelection.Clear();
 
         if (infoCharacterRoot != null)
             infoCharacterRoot.SetActive(false);
@@ -266,7 +424,7 @@ public class SelectCharacterUI : MonoBehaviour
             lockedQuestionMark.gameObject.SetActive(false);
 
         if (weaponInfoRoot != null)
-            weaponInfoRoot.SetActive(true);
+            weaponInfoRoot.SetActive(false);
 
         for (int i = 0; i < selectionAccents.Count; i++)
         {
@@ -276,8 +434,24 @@ public class SelectCharacterUI : MonoBehaviour
     }
 }
 
+internal static class StartingWeaponSelection
+{
+    public static WeaponData SelectedWeapon { get; private set; }
+
+    public static void Select(WeaponData weapon)
+    {
+        SelectedWeapon = weapon;
+    }
+
+    public static void Clear()
+    {
+        SelectedWeapon = null;
+    }
+}
+
 internal sealed class MenuLoadingOverlay : MonoBehaviour
 {
+    private const string SharedLoadingFontName = "SVN-Determination Sans SDF";
     private const float FadeToBlackDuration = 0.55f;
     private const float FadeFromBlackDuration = 0.35f;
     private const float MinimumLoadingDuration = 5f;
@@ -286,9 +460,14 @@ internal sealed class MenuLoadingOverlay : MonoBehaviour
     private CanvasGroup canvasGroup;
     private TextMeshProUGUI loadingText;
     private Material loadingFontMaterial;
+    private TMP_FontAsset requestedFont;
+    private Material requestedFontMaterial;
 
-    public static void Begin(string sceneName, System.Action onFullyCovered)
+    public static void Begin(string sceneName, System.Action onFullyCovered,
+        TMP_FontAsset font = null, Material fontMaterial = null)
     {
+        MusicAudioManager.Instance?.StopMenuMusic();
+
         GameObject root = new GameObject(
             "MenuLoadingOverlay",
             typeof(RectTransform),
@@ -311,6 +490,8 @@ internal sealed class MenuLoadingOverlay : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
 
         MenuLoadingOverlay overlay = root.GetComponent<MenuLoadingOverlay>();
+        overlay.requestedFont = font;
+        overlay.requestedFontMaterial = fontMaterial;
         overlay.canvasGroup = root.GetComponent<CanvasGroup>();
         overlay.canvasGroup.alpha = 0f;
         overlay.canvasGroup.interactable = true;
@@ -338,15 +519,22 @@ internal sealed class MenuLoadingOverlay : MonoBehaviour
         StretchToParent(textRect);
 
         loadingText = textObject.GetComponent<TextMeshProUGUI>();
-        GameObject menuLogo = GameObject.Find("GigabonkLogo");
-        TextMeshProUGUI menuFontSource = menuLogo != null
-            ? menuLogo.GetComponent<TextMeshProUGUI>()
-            : null;
-
-        loadingText.font = menuFontSource != null ? menuFontSource.font : TMP_Settings.defaultFontAsset;
-        if (menuFontSource != null)
+        TextMeshProUGUI sharedFontSource = FindSharedFontSource();
+        loadingText.font = sharedFontSource != null
+            ? sharedFontSource.font
+            : requestedFont != null
+                ? requestedFont
+                : TMP_Settings.defaultFontAsset;
+        Material sourceMaterial = sharedFontSource != null
+            ? sharedFontSource.font.material
+            : requestedFontMaterial != null
+                ? requestedFontMaterial
+                : loadingText.font != null
+                    ? loadingText.font.material
+                    : null;
+        if (sourceMaterial != null)
         {
-            loadingFontMaterial = new Material(menuFontSource.fontSharedMaterial)
+            loadingFontMaterial = new Material(sourceMaterial)
             {
                 name = "Loading Pixel Font (Runtime)",
                 hideFlags = HideFlags.DontSave
@@ -368,6 +556,26 @@ internal sealed class MenuLoadingOverlay : MonoBehaviour
         loadingText.outlineWidth = 0.25f;
         loadingText.raycastTarget = false;
         loadingText.gameObject.SetActive(false);
+    }
+
+    private static TextMeshProUGUI FindSharedFontSource()
+    {
+        TextMeshProUGUI fallback = null;
+        TextMeshProUGUI[] texts = Resources.FindObjectsOfTypeAll<TextMeshProUGUI>();
+        for (int i = 0; i < texts.Length; i++)
+        {
+            TextMeshProUGUI candidate = texts[i];
+            if (candidate == null || candidate.font == null || !candidate.gameObject.scene.IsValid())
+                continue;
+
+            if (candidate.font.name == SharedLoadingFontName)
+                return candidate;
+
+            if (fallback == null && candidate.font.name.Contains("Determination Sans"))
+                fallback = candidate;
+        }
+
+        return fallback;
     }
 
     private IEnumerator LoadSceneRoutine(string sceneName, System.Action onFullyCovered)

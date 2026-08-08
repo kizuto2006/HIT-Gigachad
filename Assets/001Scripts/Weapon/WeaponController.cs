@@ -48,8 +48,14 @@ public class WeaponController : MonoBehaviour
     private void EquipWeaponSlots()
     {
         bool equippedSlotWeapon = false;
+        WeaponData menuSelectedWeapon = StartingWeaponSelection.SelectedWeapon;
 
-        if (weaponSlot1 != null)
+        if (menuSelectedWeapon != null)
+        {
+            inventory.AddWeapon(menuSelectedWeapon);
+            equippedSlotWeapon = true;
+        }
+        else if (weaponSlot1 != null)
         {
             inventory.AddWeapon(weaponSlot1);
             equippedSlotWeapon = true;
@@ -73,17 +79,15 @@ public class WeaponController : MonoBehaviour
     /// <summary>
     /// Thêm vũ khí hoặc upgrade nếu đã có. Dùng bởi UpgradeManager.
     /// </summary>
-    public bool AddOrUpgradeWeapon(WeaponData data)
+    public bool AddOrUpgradeWeapon(WeaponData data, float rarityMultiplier = 1f)
     {
         if (data == null)
             return false;
 
         if (inventory.HasWeapon(data))
-        {
-            return inventory.UpgradeWeapon(data);
-        }
+            return inventory.UpgradeWeapon(data, rarityMultiplier);
 
-        return inventory.AddWeapon(data) != null;
+        return inventory.AddWeapon(data, rarityMultiplier) != null;
     }
 
     /// <summary>

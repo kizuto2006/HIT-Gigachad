@@ -30,6 +30,7 @@ public class XPGem : MonoBehaviour
     [Min(0f)] public float dropHeight = 1.5f;
     [Tooltip("Thời gian gem rơi xuống đất.")]
     [Min(0.05f)] public float dropDuration = 0.45f;
+    [Min(0f)] public float pickupDelay = 0.25f;
     [Tooltip("Độ cao nảy nhẹ sau khi chạm đất.")]
     [Min(0f)] public float bounceHeight = 0.12f;
     [Tooltip("Thời gian của lần nảy sau khi chạm đất.")]
@@ -58,6 +59,7 @@ public class XPGem : MonoBehaviour
     private Vector3 basePosition;
     private bool isMagneting;
     private bool isDropping;
+    private float pickupDelayRemaining;
     private float dropTimer;
     private Vector3 dropStartPosition;
     private Vector3 originalLocalScale;
@@ -84,6 +86,7 @@ public class XPGem : MonoBehaviour
         timer = 0f;
         isMagneting = false;
         isDropping = false;
+        pickupDelayRemaining = Mathf.Max(0f, pickupDelay);
         dropTimer = 0f;
         playerTransform = null;
         xpSystem = null;
@@ -152,6 +155,7 @@ public class XPGem : MonoBehaviour
 
         // Lifetime
         timer += Time.deltaTime;
+        pickupDelayRemaining = Mathf.Max(0f, pickupDelayRemaining - Time.deltaTime);
         if (timer >= lifetime)
         {
             Despawn();
@@ -174,6 +178,7 @@ public class XPGem : MonoBehaviour
         }
 
         if (playerTransform == null) return;
+        if (pickupDelayRemaining > 0f) return;
 
         float distToPlayer = Vector3.Distance(transform.position, playerTransform.position);
 
@@ -274,7 +279,7 @@ public class XPGem : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
-        if (collected || isDropping) return;
+        if (collected || isDropping || pickupDelayRemaining > 0f) return;
         if (other.CompareTag("Player"))
         {
             Collect();

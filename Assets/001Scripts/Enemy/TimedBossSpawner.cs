@@ -6,15 +6,18 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class TimedBossSpawner : MonoBehaviour
 {
+    private const float MinimumAllowedSpawnDistance = 3f;
+
     [Header("Boss")]
     [SerializeField] private GameObject bossPrefab;
     [SerializeField] private Transform player;
+    [SerializeField] private string spawnedBossName = "StoneGolemBoss";
 
     [Header("Timing")]
     [SerializeField, Min(0f)] private float spawnDelay = 180f;
 
     [Header("Placement")]
-    [SerializeField, Min(1f)] private float spawnDistance = 18f;
+    [SerializeField, Min(MinimumAllowedSpawnDistance)] private float spawnDistance = 18f;
     [SerializeField, Min(1f)] private float groundProbeHeight = 30f;
     [SerializeField, Min(1f)] private float groundProbeDistance = 80f;
     [SerializeField] private LayerMask groundMask = 1 << 7;
@@ -25,11 +28,13 @@ public sealed class TimedBossSpawner : MonoBehaviour
 
     private float elapsedTime;
     private bool hasSpawned;
+    private bool musicDuckActive;
 
     public GameObject SpawnedBoss { get; private set; }
 
     private void Awake()
     {
+        spawnDistance = Mathf.Max(MinimumAllowedSpawnDistance, spawnDistance);
         ResolvePlayer();
     }
 
@@ -37,6 +42,8 @@ public sealed class TimedBossSpawner : MonoBehaviour
     {
         if (hasSpawned)
         {
+            if (SpawnedBoss == null || !SpawnedBoss.activeInHierarchy)
+                ReleaseMusicDuck();
             return;
         }
 
@@ -52,7 +59,7 @@ public sealed class TimedBossSpawner : MonoBehaviour
         bossPrefab = prefab;
         player = playerTransform;
         spawnDelay = Mathf.Max(0f, delaySeconds);
-        spawnDistance = Mathf.Max(1f, distance);
+        spawnDistance = Mathf.Max(MinimumAllowedSpawnDistance, distance);
     }
 
     [ContextMenu("Spawn Boss Now")]
@@ -78,7 +85,10 @@ public sealed class TimedBossSpawner : MonoBehaviour
             : Quaternion.identity;
 
         SpawnedBoss = Instantiate(bossPrefab, spawnPosition, rotation);
-        SpawnedBoss.name = "StoneGolemBoss";
+        string bossName = string.IsNullOrWhiteSpace(spawnedBossName)
+            ? bossPrefab.name
+            : spawnedBossName.Trim();
+        SpawnedBoss.name = bossName;
 
         EnemySpawnEmergence emergence = SpawnedBoss.GetComponent<EnemySpawnEmergence>();
         if (emergence == null)
@@ -88,8 +98,34 @@ public sealed class TimedBossSpawner : MonoBehaviour
 
         emergence.Prepare(spawnPosition, emergenceDepth, emergenceDuration, 0f);
         hasSpawned = true;
+        SoundEffectsAudioManager.Instance?.PlayBossAppearSound();
+        RequestMusicDuck();
 
-        Debug.Log($"[TimedBossSpawner] Stone Golem xuất hiện tại {elapsedTime:F1}s.", this);
+        Debug.Log($"[TimedBossSpawner] {bossName} xuất hiện tại {elapsedTime:F1}s.", this);
+    }
+
+    private void RequestMusicDuck()
+    {
+        if (musicDuckActive || MusicAudioManager.Instance == null)
+            return;
+
+        MusicAudioManager.Instance.PushMusicDuck();
+        musicDuckActive = true;
+    }
+
+    private void ReleaseMusicDuck()
+    {
+        if (!musicDuckActive)
+            return;
+
+        if (MusicAudioManager.Instance != null)
+            MusicAudioManager.Instance.PopMusicDuck();
+        musicDuckActive = false;
+    }
+
+    private void OnDestroy()
+    {
+        ReleaseMusicDuck();
     }
 
     private void ResolvePlayer()
@@ -140,7 +176,7 @@ public sealed class TimedBossSpawner : MonoBehaviour
     private void OnValidate()
     {
         spawnDelay = Mathf.Max(0f, spawnDelay);
-        spawnDistance = Mathf.Max(1f, spawnDistance);
+        spawnDistance = Mathf.Max(MinimumAllowedSpawnDistance, spawnDistance);
         groundProbeHeight = Mathf.Max(1f, groundProbeHeight);
         groundProbeDistance = Mathf.Max(1f, groundProbeDistance);
         emergenceDepth = Mathf.Max(0f, emergenceDepth);

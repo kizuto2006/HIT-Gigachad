@@ -18,6 +18,8 @@ public sealed class DamageNumberPopup : MonoBehaviour
     private const float RiseDistance = 95f;
 
     private static readonly Color32 DamageColor = new Color32(255, 255, 255, 255);
+    private static readonly Color32 PlayerDamageColor = new Color32(255, 82, 82, 255);
+    private static readonly Color32 PlayerHealColor = new Color32(91, 255, 125, 255);
     private static readonly Color32 OutlineColor = new Color32(0, 0, 0, 255);
 
     private static DamageNumberPopup instance;
@@ -61,6 +63,18 @@ public sealed class DamageNumberPopup : MonoBehaviour
             return;
 
         EnsureInstance().ShowInternal(damage, worldPosition);
+    }
+
+    /// <summary>
+    /// Shows a signed player HP change using the same font, material and
+    /// animation as enemy damage numbers.
+    /// </summary>
+    public static void ShowHealthChange(float amount, Vector3 worldPosition)
+    {
+        if (Mathf.Approximately(amount, 0f))
+            return;
+
+        EnsureInstance().ShowHealthInternal(amount, worldPosition);
     }
 
     private static DamageNumberPopup EnsureInstance()
@@ -168,11 +182,29 @@ public sealed class DamageNumberPopup : MonoBehaviour
     {
         Popup popup = GetPopup();
         popup.worldPosition = worldPosition;
+        popup.label.color = DamageColor;
         popup.age = 0f;
         popup.horizontalDrift = Random.Range(-36f, 36f);
         popup.verticalJitter = Random.Range(-4f, 10f);
 
         popup.label.SetText("{0:0}", damage);
+        popup.label.alpha = 1f;
+        popup.rectTransform.localScale = Vector3.one * 0.65f;
+        popup.rectTransform.gameObject.SetActive(true);
+        active.Add(popup);
+    }
+
+    private void ShowHealthInternal(float amount, Vector3 worldPosition)
+    {
+        Popup popup = GetPopup();
+        popup.worldPosition = worldPosition;
+        popup.age = 0f;
+        popup.horizontalDrift = Random.Range(-36f, 36f);
+        popup.verticalJitter = Random.Range(-4f, 10f);
+        popup.label.color = amount > 0f ? PlayerHealColor : PlayerDamageColor;
+
+        char sign = amount >= 0f ? '+' : '-';
+        popup.label.text = sign + Mathf.RoundToInt(Mathf.Abs(amount)).ToString();
         popup.label.alpha = 1f;
         popup.rectTransform.localScale = Vector3.one * 0.65f;
         popup.rectTransform.gameObject.SetActive(true);

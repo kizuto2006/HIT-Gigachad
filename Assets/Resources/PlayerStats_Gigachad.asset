@@ -16,9 +16,8 @@ MonoBehaviour:
   baseHp: 120
   bonusHpFlat: 0
   bonusHpPct: 0
-  baseShield: 0
-  bonusShieldFlat: 0
   armorReduction: 0
+  dodgeChance: 0
   baseAtk: 10
   bonusAtkPct: 0
   criticalChance: 0.01
@@ -35,5 +34,7 @@ MonoBehaviour:
   bonusSpeedPct: -0.05
   baseJumpHeight: 1.5
   bonusJumpHeightPct: 0
-  pickupRange: 5
+  pickupRange: 2.5
   experienceMultiplier: 1
+  powerupDropChance: 0.01
+  powerupMultiplier: 1

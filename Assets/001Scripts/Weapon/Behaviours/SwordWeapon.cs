@@ -77,7 +77,12 @@ public sealed class SwordWeapon : WeaponBehaviour
             if (offset.sqrMagnitude > radiusSquared)
                 continue;
 
-            enemy.TakeDamage(RollCritDamage(baseDamage), false);
+            float finalDamage = RollCritDamage(baseDamage);
+            if (!enemy.CanBeTargeted || enemy.GetExpectedDamage(finalDamage) <= 0f)
+                continue;
+
+            enemy.TakeDamage(finalDamage, false);
+            WeaponHitParticles.PlaySwordHit(enemy, attackForward);
             ApplySwordKnockback(enemy);
         }
     }
@@ -113,7 +118,6 @@ public sealed class SwordWeapon : WeaponBehaviour
 
     private void PlayAttackSound(Vector3 position)
     {
-        if (data.attackSound != null)
-            AudioSource.PlayClipAtPoint(data.attackSound, position);
+        PlayWeaponAttackSound(position);
     }
 }

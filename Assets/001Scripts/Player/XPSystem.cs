@@ -25,6 +25,11 @@ public class XPSystem : MonoBehaviour
     [Min(0)] public int bonusXPPerLevel = 10;
 
     /// <summary>
+    /// Event broadcast when the player receives a positive amount of XP.
+    /// </summary>
+    public event System.Action<int> OnXPReceived;
+
+    /// <summary>
     /// Event broadcast khi player level up. Parameter = level mới.
     /// </summary>
     public event System.Action<int> OnLevelUp;
@@ -61,6 +66,7 @@ public class XPSystem : MonoBehaviour
     {
         if (amount <= 0) return;
 
+        OnXPReceived?.Invoke(amount);
         currentXP += amount;
         OnXPChanged?.Invoke(currentXP, XPToNextLevel);
 

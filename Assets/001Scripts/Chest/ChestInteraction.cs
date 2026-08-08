@@ -150,6 +150,7 @@ public sealed class ChestInteraction : MonoBehaviour
         isOpen = true;
         AdvanceCostProgression();
         SetPromptVisible(false);
+        SoundEffectsAudioManager.Instance?.PlayUpgradeSound();
         chestAnimator?.Open();
 
         if (idleVfxInstance != null)

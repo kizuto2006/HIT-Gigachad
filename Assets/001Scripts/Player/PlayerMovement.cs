@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+[DefaultExecutionOrder(-100)]
 public class PlayerSimpleMovement : MonoBehaviour
 {
     [Header("── References ──")]
@@ -10,6 +11,15 @@ public class PlayerSimpleMovement : MonoBehaviour
     [SerializeField, Min(0f)] private float fallbackMoveSpeed = 5f;
     [Tooltip("Chỉ dùng khi PlayerBaseStats chưa được gán. Không phải nguồn jump gameplay chính.")]
     [SerializeField, Min(0f)] private float fallbackJumpHeight = 1.8f;
+
+    [SerializeField] private bool useFixedSpawnPosition = true;
+    [SerializeField] private Vector3 fixedSpawnPosition = Vector3.zero;
+    [SerializeField, Min(0f)] private float spawnEdgeMargin = 50f;
+    [SerializeField] private Vector2 mapBoundsMin = new Vector2(-270f, -270f);
+    [SerializeField] private Vector2 mapBoundsMax = new Vector2(270f, 270f);
+    [SerializeField] private LayerMask spawnGroundLayers = ~0;
+    [SerializeField, Min(1f)] private float spawnProbeHeight = 160f;
+    [SerializeField, Min(1f)] private float spawnProbeDistance = 400f;
 
     [Header("── Ground Momentum ──")]
     [Tooltip("Gia tốc khi chạy cùng hướng hoặc bắt đầu di chuyển.")]
@@ -22,8 +32,11 @@ public class PlayerSimpleMovement : MonoBehaviour
     [SerializeField, Min(0f)] private float groundTurnSpeed = 720f;
     [Tooltip("Nhân lực phanh khi input gần ngược với momentum hiện tại.")]
     [SerializeField, Min(1f)] private float reverseBrakingMultiplier = 1.4f;
+    [Tooltip("Mức phanh khi đổi sang hướng gần ngược để vẫn giữ quỹ đạo cong thay vì dừng gấp.")]
+    [SerializeField, Range(0f, 1f)] private float reverseMomentumBrakeMultiplier = 0.35f;
+
     [Tooltip("Mức mất tốc khi cua. 0 không mất tốc, 1 dùng toàn bộ groundBraking theo góc cua.")]
-    [SerializeField, Range(0f, 1f)] private float turnSpeedLoss = 0.1f;
+    [SerializeField, Range(0f, 1f)] private float turnSpeedLoss = 0.05f;
 
     [Header("── Air Momentum ──")]
     [Tooltip("Gia tốc rất nhỏ khi input cùng hướng momentum.")]
@@ -39,21 +52,31 @@ public class PlayerSimpleMovement : MonoBehaviour
     [Tooltip("Tỷ lệ momentum ngang giữ lại khi nhảy thường. Đặt 1 để cú nhảy đầu tiên không làm giảm vận tốc.")]
     [SerializeField, Range(0f, 1f)] private float normalJumpMomentumRetention = 1f;
     [Tooltip("Lượng vận tốc ngang cộng thêm cho cú nhảy thường khi player đang di chuyển.")]
-    [SerializeField, Min(0f)] private float normalJumpSpeedBoost = 0.75f;
+    [SerializeField, Min(0f)] private float normalJumpSpeedBoost = 1.25f;
     [Tooltip("Giới hạn tốc độ ngang của cú nhảy thường theo tỷ lệ CurrentMoveSpeed.")]
-    [SerializeField, Min(1f)] private float normalJumpMaxSpeedMultiplier = 1.1f;
+    [SerializeField, Min(1f)] private float normalJumpMaxSpeedMultiplier = 1.4f;
     [Tooltip("Tỷ lệ momentum ngang giữ lại khi bunny-hop. Đặt 1 để giữ nguyên vận tốc trước khi cộng boost.")]
     [SerializeField, Range(0f, 1f)] private float bunnyHopMomentumRetention = 1f;
 
     [Header("── Bunny Hop ──")]
     [Tooltip("Cho phép bunny-hop thông qua jump buffer gần thời điểm landing.")]
     [SerializeField] private bool enableBunnyHop = true;
+    [Tooltip("Hold jump to automatically take off again on landing.")]
+    [SerializeField] private bool allowHeldBunnyHop = false;
     [Tooltip("Khoảng thời gian trước hoặc sau landing được tính là bunny-hop.")]
-    [SerializeField, Min(0f)] private float bunnyHopWindow = 0.12f;
+    [SerializeField, Min(0f)] private float bunnyHopWindow = 0.2f;
     [Tooltip("Lượng vận tốc ngang cộng thêm khi bunny-hop thành công.")]
-    [SerializeField, Min(0f)] private float bunnyHopSpeedBoost = 0.75f;
+    [SerializeField, Min(0f)] private float bunnyHopSpeedBoost = 0.45f;
+    [Tooltip("Minimum speed of the first chained bunny hop relative to CurrentMoveSpeed.")]
+    [SerializeField, Min(1f)] private float bunnyHopStartSpeedMultiplier = 1.55f;
+    [Tooltip("Additional speed-cap multiplier granted by each consecutive bunny hop.")]
+    [SerializeField, Min(0f)] private float bunnyHopSpeedStepMultiplier = 0.15f;
     [Tooltip("Giới hạn bunny speed theo tỷ lệ CurrentMoveSpeed.")]
-    [SerializeField, Min(1f)] private float bunnyHopMaxSpeedMultiplier = 1.15f;
+    [SerializeField, Min(1f)] private float bunnyHopMaxSpeedMultiplier = 1.85f;
+    [Tooltip("Time grounded before the accumulated bunny-hop chain resets.")]
+    [SerializeField, Min(0f)] private float bunnyHopChainResetDelay = 0.3f;
+    [Tooltip("Tốc độ xoay momentum theo input khi đang bunny-hop (độ/giây).")]
+    [SerializeField, Min(0f)] private float bunnyHopAirTurnSpeed = 300f;
     [Tooltip("Thời gian tối thiểu phải airborne trước khi landing có thể bunny-hop.")]
     [SerializeField, Min(0f)] private float minimumAirTimeForBunnyHop = 0.1f;
 
@@ -80,21 +103,33 @@ public class PlayerSimpleMovement : MonoBehaviour
     [Tooltip("Thời gian cho phép nhảy sau khi rời mặt đất.")]
     [SerializeField, Min(0f)] private float coyoteTime = 0.15f;
     [Tooltip("Thời gian ghi nhớ input nhảy trước khi chạm đất.")]
-    [SerializeField, Min(0f)] private float jumpBufferTime = 0.15f;
+    [SerializeField, Min(0f)] private float jumpBufferTime = 0.2f;
     [Tooltip("Thời gian ở trên không trước khi bật trạng thái Falling.")]
     [SerializeField, Min(0f)] private float fallTimeThreshold = 0.3f;
+
+    [Header("Jump VFX")]
+    [Tooltip("Emit a sand-dust burst at the player's feet on takeoff.")]
+    [SerializeField] private bool enableJumpParticles = true;
+    [Tooltip("Particle count for a normal jump.")]
+    [SerializeField, Min(1)] private int normalJumpParticleCount = 12;
+    [Tooltip("Base particle count for a bunny hop.")]
+    [SerializeField, Min(1)] private int bunnyHopBaseParticleCount = 16;
+    [Tooltip("Extra particles for each consecutive bunny hop.")]
+    [SerializeField, Min(0)] private int bunnyHopParticlesPerChain = 4;
 
     private static readonly int SpeedHash = Animator.StringToHash("Speed");
     private static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
     private static readonly int IsFallingHash = Animator.StringToHash("IsFalling");
     private static readonly int VelocityYHash = Animator.StringToHash("VelocityY");
     private static readonly int JumpHash = Animator.StringToHash("Jump");
+    private static Material sharedJumpParticleMaterial;
 
     private Transform cameraTransform;
     private Animator animator;
     private Transform visualRoot;
     private Quaternion visualBaseLocalRotation;
     private readonly RaycastHit[] slopeHits = new RaycastHit[16];
+    private readonly RaycastHit[] spawnGroundHits = new RaycastHit[32];
     private Vector2 moveInput;
     private Vector3 horizontalVelocity;
     private Vector3 desiredFacingDirection;
@@ -105,21 +140,23 @@ public class PlayerSimpleMovement : MonoBehaviour
     private float lastCompletedAirTime;
     private float timeSinceLanded = float.PositiveInfinity;
     private float jumpPressAge = float.PositiveInfinity;
+    private int bunnyHopChain;
     private bool isGrounded;
     private bool wasGrounded;
     private bool justLanded;
     private bool bunnyHopConsumedForLanding = true;
     private bool jumpPressed;
+    private bool jumpHeld;
     private bool hasSpeedParam;
     private bool hasIsGroundedParam;
     private bool hasIsFallingParam;
     private bool hasVelocityYParam;
     private bool hasJumpParam;
-
-    private float CurrentMoveSpeed => playerStats != null
-        ? Mathf.Max(0f, playerStats.FinalSpeed)
-        : fallbackMoveSpeed;
-
+    private ParticleSystem jumpParticles;
+    private float CurrentMoveSpeed => Mathf.Max(
+        0f,
+        (playerStats != null ? playerStats.FinalSpeed : fallbackMoveSpeed) *
+        PlayerPowerupController.GetMoveSpeedMultiplierFor(transform));
     private float CurrentJumpHeight => playerStats != null
         ? Mathf.Max(0f, playerStats.FinalJumpHeight)
         : fallbackJumpHeight;
@@ -147,6 +184,7 @@ public class PlayerSimpleMovement : MonoBehaviour
             ? visualRoot.localRotation
             : Quaternion.identity;
         CacheAnimatorParameters();
+        CreateJumpParticles();
 
         if (controller == null)
         {
@@ -154,6 +192,9 @@ public class PlayerSimpleMovement : MonoBehaviour
             enabled = false;
             return;
         }
+
+        if (useFixedSpawnPosition)
+            PlaceAtFixedSpawnPosition();
 
         if (playerStats == null)
         {
@@ -164,6 +205,97 @@ public class PlayerSimpleMovement : MonoBehaviour
         {
             Debug.LogWarning("[PlayerMovement] Không tìm thấy Main Camera; input sẽ dùng hướng world-space.", this);
         }
+    }
+
+    private void PlaceAtFixedSpawnPosition()
+    {
+        Vector3 spawnPosition = fixedSpawnPosition;
+        float minX = Mathf.Min(mapBoundsMin.x, mapBoundsMax.x);
+        float maxX = Mathf.Max(mapBoundsMin.x, mapBoundsMax.x);
+        float minZ = Mathf.Min(mapBoundsMin.y, mapBoundsMax.y);
+        float maxZ = Mathf.Max(mapBoundsMin.y, mapBoundsMax.y);
+        float marginX = Mathf.Min(spawnEdgeMargin, (maxX - minX) * 0.5f);
+        float marginZ = Mathf.Min(spawnEdgeMargin, (maxZ - minZ) * 0.5f);
+
+        spawnPosition.x = Mathf.Clamp(spawnPosition.x, minX + marginX, maxX - marginX);
+        spawnPosition.z = Mathf.Clamp(spawnPosition.z, minZ + marginZ, maxZ - marginZ);
+
+        if (TryGetSpawnGroundHeight(spawnPosition, out float groundY))
+            spawnPosition.y = groundY + GetControllerGroundOffset();
+        else
+            spawnPosition.y += GetControllerGroundOffset();
+
+        bool wasControllerEnabled = controller.enabled;
+        if (wasControllerEnabled)
+            controller.enabled = false;
+
+        transform.position = spawnPosition;
+
+        if (wasControllerEnabled)
+            controller.enabled = true;
+    }
+
+    private bool TryGetSpawnGroundHeight(Vector3 position, out float groundY)
+    {
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain != null && terrain.terrainData != null)
+        {
+            Vector3 terrainPosition = terrain.transform.position;
+            Vector3 terrainSize = terrain.terrainData.size;
+            bool insideTerrain = position.x >= terrainPosition.x
+                && position.x <= terrainPosition.x + terrainSize.x
+                && position.z >= terrainPosition.z
+                && position.z <= terrainPosition.z + terrainSize.z;
+
+            if (insideTerrain)
+            {
+                groundY = terrain.SampleHeight(position) + terrainPosition.y;
+                return true;
+            }
+        }
+
+        Vector3 rayOrigin = new Vector3(position.x, spawnProbeHeight, position.z);
+        int hitCount = Physics.RaycastNonAlloc(
+            rayOrigin,
+            Vector3.down,
+            spawnGroundHits,
+            spawnProbeDistance,
+            spawnGroundLayers,
+            QueryTriggerInteraction.Ignore);
+
+        float closestDistance = float.MaxValue;
+        groundY = position.y;
+        bool foundGround = false;
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            RaycastHit hit = spawnGroundHits[i];
+            if (hit.collider == null || hit.normal.y < 0.35f)
+                continue;
+
+            Transform hitTransform = hit.collider.transform;
+            if (hitTransform == transform || hitTransform.IsChildOf(transform))
+                continue;
+
+            if (hit.collider.GetComponentInParent<EnemyHealth>() != null)
+                continue;
+
+            if (hit.distance >= closestDistance)
+                continue;
+
+            closestDistance = hit.distance;
+            groundY = hit.point.y;
+            foundGround = true;
+        }
+
+        return foundGround;
+    }
+
+    private float GetControllerGroundOffset()
+    {
+        return controller != null
+            ? Mathf.Max(0f, controller.height * 0.5f - controller.center.y)
+            : 0f;
     }
 
     private void Start()
@@ -180,7 +312,8 @@ public class PlayerSimpleMovement : MonoBehaviour
         UpdateJumpTimers(deltaTime);
 
         Vector3 desiredDirection = GetCameraRelativeInput();
-        if (isGrounded)
+        bool preserveLandingMomentum = IsBunnyHopEligible(desiredDirection);
+        if (isGrounded && !preserveLandingMomentum)
         {
             UpdateGroundVelocity(desiredDirection, deltaTime);
         }
@@ -215,12 +348,21 @@ public class PlayerSimpleMovement : MonoBehaviour
     {
         if (context.performed)
         {
+            jumpHeld = true;
             jumpPressed = true;
+        }
+        else if (context.canceled)
+        {
+            jumpHeld = false;
         }
     }
 
     public void ApplyKnockback(Vector3 force)
     {
+        PlayerPowerupController powerups = PlayerPowerupController.FindFor(transform);
+        if (powerups != null && powerups.IsInvulnerable)
+            return;
+
         horizontalVelocity += new Vector3(force.x, 0f, force.z);
         
         if (force.y > 0f)
@@ -236,6 +378,10 @@ public class PlayerSimpleMovement : MonoBehaviour
     /// </summary>
     public void ApplyContactPush(Vector3 direction, float speed)
     {
+        PlayerPowerupController powerups = PlayerPowerupController.FindFor(transform);
+        if (powerups != null && powerups.IsInvulnerable)
+            return;
+
         direction.y = 0f;
         if (controller == null || direction.sqrMagnitude < 0.0001f || speed <= 0f)
         {
@@ -280,6 +426,10 @@ public class PlayerSimpleMovement : MonoBehaviour
             else
             {
                 timeSinceLanded += deltaTime;
+                if (timeSinceLanded > bunnyHopChainResetDelay)
+                {
+                    bunnyHopChain = 0;
+                }
             }
 
             airTimeCounter = 0f;
@@ -311,6 +461,12 @@ public class PlayerSimpleMovement : MonoBehaviour
         {
             jumpBufferCounter = Mathf.Max(0f, jumpBufferCounter - deltaTime);
             jumpPressAge += deltaTime;
+        }
+
+        if (enableBunnyHop && allowHeldBunnyHop && jumpHeld && justLanded)
+        {
+            jumpBufferCounter = Mathf.Max(jumpBufferCounter, bunnyHopWindow);
+            jumpPressAge = 0f;
         }
     }
 
@@ -356,19 +512,31 @@ public class PlayerSimpleMovement : MonoBehaviour
         Vector3 currentDirection = horizontalVelocity / currentSpeed;
         Vector3 targetDirection = desiredDirection.normalized;
         float directionDot = Vector3.Dot(currentDirection, targetDirection);
+        float turnRadians = groundTurnSpeed * Mathf.Deg2Rad * deltaTime;
 
         if (directionDot < -0.25f)
         {
-            float reverseBrake = groundBraking * reverseBrakingMultiplier;
+            Vector3 reverseTurnedDirection = Vector3.RotateTowards(
+                currentDirection,
+                targetDirection,
+                turnRadians,
+                0f).normalized;
+            float reverseBrake = groundBraking
+                * reverseBrakingMultiplier
+                * reverseMomentumBrakeMultiplier;
+            // Brake the old momentum while the velocity direction turns. Using
+            // targetSpeed here would preserve full speed when currentSpeed is
+            // already equal to targetSpeed, making an opposite input feel like
+            // a wide, delayed arc instead of a responsive turn.
             float newSpeed = Mathf.MoveTowards(currentSpeed, 0f, reverseBrake * deltaTime);
-            horizontalVelocity = newSpeed > 0f ? currentDirection * newSpeed : Vector3.zero;
+            horizontalVelocity = reverseTurnedDirection * newSpeed;
             return;
         }
 
         Vector3 turnedDirection = Vector3.RotateTowards(
             currentDirection,
             targetDirection,
-            groundTurnSpeed * Mathf.Deg2Rad * deltaTime,
+            turnRadians,
             0f).normalized;
 
         float turnAmount = 1f - Mathf.Clamp01(directionDot);
@@ -404,6 +572,17 @@ public class PlayerSimpleMovement : MonoBehaviour
         }
 
         Vector3 currentDirection = horizontalVelocity / currentSpeed;
+
+        if (!isGrounded && bunnyHopChain > 0)
+        {
+            Vector3 steeredDirection = Vector3.RotateTowards(
+                currentDirection,
+                targetDirection,
+                bunnyHopAirTurnSpeed * Mathf.Deg2Rad * deltaTime,
+                0f).normalized;
+            horizontalVelocity = steeredDirection * currentSpeed;
+            return;
+        }
         float directionDot = Vector3.Dot(currentDirection, targetDirection);
 
         if (directionDot < 0f)
@@ -452,12 +631,17 @@ public class PlayerSimpleMovement : MonoBehaviour
         verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
         if (isBunnyHop)
         {
+            bunnyHopChain++;
             ApplyBunnyHopBoost(desiredDirection);
         }
         else
         {
+            bunnyHopChain = 0;
             ApplyNormalJumpBoost(desiredDirection);
         }
+
+        PlayJumpParticles(isBunnyHop);
+        SoundEffectsAudioManager.Instance?.PlayJumpSound();
 
         jumpBufferCounter = 0f;
         coyoteTimeCounter = 0f;
@@ -486,8 +670,7 @@ public class PlayerSimpleMovement : MonoBehaviour
             return false;
         }
 
-        return desiredDirection.sqrMagnitude >= 0.0001f
-            || horizontalVelocity.sqrMagnitude >= minimumRotationSpeed * minimumRotationSpeed;
+        return desiredDirection.sqrMagnitude >= 0.0001f;
     }
 
     private void ApplyNormalJumpBoost(Vector3 desiredDirection)
@@ -522,8 +705,178 @@ public class PlayerSimpleMovement : MonoBehaviour
         }
 
         horizontalVelocity += boostDirection * bunnyHopSpeedBoost;
+        float chainSpeedMultiplier = Mathf.Min(
+            bunnyHopStartSpeedMultiplier
+                + Mathf.Max(0, bunnyHopChain - 1) * bunnyHopSpeedStepMultiplier,
+            bunnyHopMaxSpeedMultiplier);
+        float chainTargetSpeed = CurrentMoveSpeed * chainSpeedMultiplier;
         float maxBunnySpeed = CurrentMoveSpeed * bunnyHopMaxSpeedMultiplier;
-        horizontalVelocity = Vector3.ClampMagnitude(horizontalVelocity, maxBunnySpeed);
+        float targetSpeed = Mathf.Min(
+            Mathf.Max(horizontalVelocity.magnitude, chainTargetSpeed),
+            maxBunnySpeed);
+        horizontalVelocity = horizontalVelocity.normalized * targetSpeed;
+    }
+
+    private void CreateJumpParticles()
+    {
+        if (!enableJumpParticles || jumpParticles != null)
+        {
+            return;
+        }
+
+        GameObject particleObject = new GameObject("Player Jump Dust");
+        particleObject.transform.SetParent(transform, false);
+        jumpParticles = particleObject.AddComponent<ParticleSystem>();
+        jumpParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+        ParticleSystem.MainModule main = jumpParticles.main;
+        main.loop = false;
+        main.playOnAwake = false;
+        main.duration = 1f;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.maxParticles = 64;
+        main.cullingMode = ParticleSystemCullingMode.Automatic;
+        main.gravityModifier = 0.65f;
+
+        ParticleSystem.EmissionModule emission = jumpParticles.emission;
+        emission.enabled = false;
+
+        ParticleSystem.ShapeModule shape = jumpParticles.shape;
+        shape.enabled = false;
+
+        ParticleSystem.ColorOverLifetimeModule colorOverLifetime = jumpParticles.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        Gradient fadeGradient = new Gradient();
+        fadeGradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(Color.white, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(0.9f, 0.45f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        colorOverLifetime.color = fadeGradient;
+
+        ParticleSystem.SizeOverLifetimeModule sizeOverLifetime = jumpParticles.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(
+            1f,
+            new AnimationCurve(
+                new Keyframe(0f, 0.35f),
+                new Keyframe(0.18f, 1f),
+                new Keyframe(1f, 0.2f)));
+
+        ParticleSystemRenderer particleRenderer = jumpParticles.GetComponent<ParticleSystemRenderer>();
+        particleRenderer.renderMode = ParticleSystemRenderMode.Billboard;
+        particleRenderer.sortMode = ParticleSystemSortMode.Distance;
+        particleRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        particleRenderer.receiveShadows = false;
+        particleRenderer.allowOcclusionWhenDynamic = false;
+        Material particleMaterial = GetOrCreateJumpParticleMaterial();
+        if (particleMaterial != null)
+        {
+            particleRenderer.sharedMaterial = particleMaterial;
+        }
+    }
+
+    private void PlayJumpParticles(bool isBunnyHop)
+    {
+        if (!enableJumpParticles)
+        {
+            return;
+        }
+
+        if (jumpParticles == null)
+        {
+            CreateJumpParticles();
+        }
+
+        if (jumpParticles == null)
+        {
+            return;
+        }
+
+        int chainStrength = isBunnyHop ? Mathf.Clamp(bunnyHopChain, 1, 3) : 0;
+        int particleCount = isBunnyHop
+            ? bunnyHopBaseParticleCount + bunnyHopParticlesPerChain * chainStrength
+            : normalJumpParticleCount;
+        Vector3 footPosition = new Vector3(
+            transform.position.x,
+            controller != null ? controller.bounds.min.y + 0.04f : transform.position.y + 0.04f,
+            transform.position.z);
+
+        Vector3 movementDirection = horizontalVelocity.sqrMagnitude > 0.001f
+            ? horizontalVelocity.normalized
+            : transform.forward;
+        Color baseColor = Color.white;
+
+        for (int i = 0; i < particleCount; i++)
+        {
+            Vector2 randomCircle = Random.insideUnitCircle;
+            Vector3 radialDirection = new Vector3(randomCircle.x, 0f, randomCircle.y);
+            if (radialDirection.sqrMagnitude < 0.001f)
+            {
+                radialDirection = transform.right;
+            }
+            radialDirection.Normalize();
+
+            float spreadRadius = Random.Range(0.05f, isBunnyHop ? 0.28f : 0.2f);
+            float outwardSpeed = Random.Range(
+                isBunnyHop ? 2.2f : 1.35f,
+                isBunnyHop ? 3.6f + chainStrength * 0.3f : 2.45f);
+            float upwardSpeed = Random.Range(0.35f, isBunnyHop ? 1.25f : 0.9f);
+
+            ParticleSystem.EmitParams emit = new ParticleSystem.EmitParams
+            {
+                position = footPosition + radialDirection * spreadRadius,
+                velocity = radialDirection * outwardSpeed
+                    - movementDirection * (isBunnyHop ? 0.8f : 0.35f)
+                    + Vector3.up * upwardSpeed,
+                startLifetime = Random.Range(0.42f, isBunnyHop ? 0.78f : 0.65f),
+                startSize = Random.Range(
+                    isBunnyHop ? 0.2f : 0.14f,
+                    isBunnyHop ? 0.4f + chainStrength * 0.035f : 0.3f),
+                startColor = baseColor
+            };
+            jumpParticles.Emit(emit, 1);
+        }
+    }
+
+    private static Material GetOrCreateJumpParticleMaterial()
+    {
+        if (sharedJumpParticleMaterial != null)
+        {
+            return sharedJumpParticleMaterial;
+        }
+
+        Shader shader = Resources.Load<Shader>("Shaders/GoldenSandParticle");
+        if (shader == null)
+        {
+            shader = Shader.Find("Custom/Gigachad/Golden Sand Particle");
+        }
+        if (shader == null)
+        {
+            shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+        }
+        if (shader == null)
+        {
+            return null;
+        }
+
+        sharedJumpParticleMaterial = new Material(shader)
+        {
+            name = "Shared Runtime Player Jump Dust Material",
+            hideFlags = HideFlags.HideAndDontSave
+        };
+        if (sharedJumpParticleMaterial.HasProperty("_Softness"))
+        {
+            sharedJumpParticleMaterial.SetFloat("_Softness", 0.3f);
+        }
+        return sharedJumpParticleMaterial;
     }
 
     private void ApplyGravity(float deltaTime)
@@ -533,19 +886,19 @@ public class PlayerSimpleMovement : MonoBehaviour
 
     private void UpdateRotation(Vector3 desiredDirection, float deltaTime)
     {
-        Vector3 facingDirection = Vector3.zero;
-        if (desiredDirection.sqrMagnitude >= 0.0001f)
+        Vector3 facingDirection = horizontalVelocity;
+        float minimumRotationSpeedSquared = minimumRotationSpeed * minimumRotationSpeed;
+
+        if (facingDirection.sqrMagnitude >= minimumRotationSpeedSquared)
+        {
+            desiredFacingDirection = facingDirection.normalized;
+        }
+        else if (desiredDirection.sqrMagnitude >= 0.0001f)
         {
             desiredFacingDirection = desiredDirection.normalized;
             facingDirection = desiredFacingDirection;
         }
-        else if (isGrounded
-            && horizontalVelocity.sqrMagnitude >= minimumRotationSpeed * minimumRotationSpeed)
-        {
-            facingDirection = horizontalVelocity.normalized;
-        }
-
-        if (facingDirection.sqrMagnitude < 0.0001f)
+        else
         {
             return;
         }

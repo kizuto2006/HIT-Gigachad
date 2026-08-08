@@ -52,12 +52,8 @@ public sealed class AuraWeapon : WeaponBehaviour
                     : 2f,
                 playerTransform);
 
-            if (i == 0 && data.attackSound != null)
-            {
-                AudioSource.PlayClipAtPoint(
-                    data.attackSound,
-                    playerTransform.position);
-            }
+            if (i == 0)
+                PlayWeaponAttackSound(playerTransform.position);
 
             if (i < pulseCount - 1)
                 yield return new WaitForSeconds(interval);
@@ -160,7 +156,10 @@ public sealed class AuraDamagePulse : MonoBehaviour
                 continue;
 
             float finalDamage = Random.value < critChance ? damage * critDamageMultiplier : damage;
+            if (!enemy.CanBeTargeted || enemy.GetExpectedDamage(finalDamage) <= 0f)
+                continue;
             enemy.TakeDamage(finalDamage, false);
+            WeaponHitParticles.PlayAuraHit(enemy, offset);
             ApplyAuraKnockback(enemy);
         }
     }

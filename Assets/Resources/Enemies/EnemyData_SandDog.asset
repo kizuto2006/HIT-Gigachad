@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac68658aecada701fb4328d4ed4ff287, type: 3}
   m_Name: EnemyData_SandDog
   m_EditorClassIdentifier: Assembly-CSharp::EnemyData
-  hp: 24
-  atk: 8
-  speed: 3.6
-  armor: 0.5
+  hp: 30
+  atk: 10
+  speed: 4
+  armor: 1
   size: 0
-  xpReward: 4
+  xpReward: 5

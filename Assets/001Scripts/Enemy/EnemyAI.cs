@@ -79,7 +79,6 @@ public class EnemyAI : MonoBehaviour
 
         if (currentCell != null)
         {
-            currentCell.enemiesInThisCell.Remove(transform);
             currentCell = null;
         }
     }
@@ -120,6 +119,12 @@ public class EnemyAI : MonoBehaviour
         bool allowLineOfSightRaycast)
     {
         nextDirectionUpdateTime = Time.time + JitterInterval(updateInterval);
+
+        if (PlayerPowerupController.AreEnemyActionsFrozen)
+        {
+            cachedMovementDirection = Vector3.zero;
+            return 0;
+        }
 
         if (isMovementLocked || isClimbing || player == null || flowField == null)
         {
@@ -173,6 +178,12 @@ public class EnemyAI : MonoBehaviour
     /// </summary>
     public int UpdateEnvironment(float updateInterval, bool allowRaycasts)
     {
+        if (PlayerPowerupController.AreEnemyActionsFrozen)
+        {
+            knockbackVelocity = Vector3.zero;
+            return 0;
+        }
+
         ApplyKnockbackVelocity();
 
         if (isClimbing)

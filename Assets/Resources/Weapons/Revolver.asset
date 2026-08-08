@@ -59,4 +59,4 @@ MonoBehaviour:
   attackEffectPrefab: {fileID: 5035383699600101640, guid: 65802f02bdac1214b9581ea779ec0c2d, type: 3}
   projectilePrefab: {fileID: 684070718362971925, guid: 03b7ca3bd770c8c48a7d621f7671715d, type: 3}
   attackAnimation: {fileID: 0}
-  attackSound: {fileID: 0}
+  attackSound: {fileID: 8300000, guid: 46715b531edace34e9da7a0259c1f1d6, type: 3}

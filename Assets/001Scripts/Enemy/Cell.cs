@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Collections.Generic;
 
 public class Cell
 {
@@ -8,8 +7,6 @@ public class Cell
     public byte cost;
     public ushort bestCost;
     public Vector3 bestDirection;
-
-    public HashSet<Transform> enemiesInThisCell = new HashSet<Transform>();
 
     public Cell(Vector3 _worldPos, Vector2Int _gridIndex)
     {

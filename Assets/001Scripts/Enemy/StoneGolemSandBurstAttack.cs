@@ -40,12 +40,16 @@ public sealed class StoneGolemSandBurstAttack : MonoBehaviour
     private int attackSequence;
     private CharacterController targetController;
     private StoneGolemBossAttackLock attackLock;
+    private ParticleSystem windupParticles;
+    private Material windupMaterial;
+    private Coroutine windupStopRoutine;
 
     public bool IsAttacking => isAttacking;
 
-    private void Awake()
+private void Awake()
     {
         ResolveReferences();
+        EnsureWindupVfx();
     }
 
     private void OnEnable()
@@ -56,6 +60,11 @@ public sealed class StoneGolemSandBurstAttack : MonoBehaviour
 
     private void Update()
     {
+        if (PlayerPowerupController.AreEnemyActionsFrozen)
+        {
+            return;
+        }
+
         if (isAttacking || Time.time < nextAttackTime)
         {
             return;
@@ -82,11 +91,18 @@ public sealed class StoneGolemSandBurstAttack : MonoBehaviour
         StartCoroutine(AttackRoutine());
     }
 
-    private void OnDisable()
+private void OnDisable()
     {
         StopAllCoroutines();
         bool wasAttacking = isAttacking;
         isAttacking = false;
+
+        if (windupParticles != null)
+        {
+            windupParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        windupStopRoutine = null;
 
         if (wasAttacking && enemyAI != null)
         {
@@ -95,6 +111,24 @@ public sealed class StoneGolemSandBurstAttack : MonoBehaviour
 
         attackLock?.Release(this);
     }
+
+private void OnDestroy()
+    {
+        if (windupMaterial != null)
+        {
+            if (Application.isPlaying)
+            {
+                Destroy(windupMaterial);
+            }
+            else
+            {
+                DestroyImmediate(windupMaterial);
+            }
+
+            windupMaterial = null;
+        }
+    }
+
 
     private IEnumerator AttackRoutine()
     {
@@ -119,6 +153,11 @@ public sealed class StoneGolemSandBurstAttack : MonoBehaviour
 
         for (int i = 0; i < offsets.Length; i++)
         {
+            while (PlayerPowerupController.AreEnemyActionsFrozen)
+            {
+                yield return null;
+            }
+
             float lookAhead = predictionLookAhead + burstInterval * i;
             targetVelocity = GetTargetVelocity();
             targetPosition = PredictTargetPosition(
@@ -226,19 +265,62 @@ public sealed class StoneGolemSandBurstAttack : MonoBehaviour
         return result;
     }
 
-    private void PlayWindupVfx(float lifetime)
+private void PlayWindupVfx(float lifetime)
     {
+        EnsureWindupVfx();
+        if (windupParticles == null)
+        {
+            return;
+        }
+
+        float safeLifetime = Mathf.Max(0.1f, lifetime);
+        ParticleSystem.MainModule main = windupParticles.main;
+        main.duration = safeLifetime;
+
+        windupParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        windupParticles.Play();
+
+        if (windupStopRoutine != null)
+        {
+            StopCoroutine(windupStopRoutine);
+        }
+
+        windupStopRoutine = StartCoroutine(StopWindupVfxAfter(safeLifetime + 0.25f));
+    }
+
+private IEnumerator StopWindupVfxAfter(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+
+        if (windupParticles != null)
+        {
+            windupParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        windupStopRoutine = null;
+    }
+
+
+private void EnsureWindupVfx()
+    {
+        if (windupParticles != null)
+        {
+            return;
+        }
+
         GameObject windupObject = new GameObject("Sand Burst Windup");
         windupObject.transform.SetParent(transform, false);
         windupObject.transform.localPosition = Vector3.up * 1.4f;
 
-        ParticleSystem particles = windupObject.AddComponent<ParticleSystem>();
-        // A ParticleSystem added to an active GameObject starts automatically.
-        // Stop it before changing duration or Unity logs an error every attack.
-        particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-        ParticleSystem.MainModule main = particles.main;
-        main.duration = Mathf.Max(0.1f, lifetime);
+        windupParticles = windupObject.AddComponent<ParticleSystem>();
+        windupParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+        ParticleSystem.MainModule main = windupParticles.main;
+        main.duration = 1f;
         main.loop = true;
+        main.playOnAwake = false;
+        main.maxParticles = 32;
+        main.cullingMode = ParticleSystemCullingMode.Automatic;
         main.startLifetime = new ParticleSystem.MinMaxCurve(0.3f, 0.65f);
         main.startSpeed = new ParticleSystem.MinMaxCurve(0.2f, 1.1f);
         main.startSize = new ParticleSystem.MinMaxCurve(0.06f, 0.18f);
@@ -247,33 +329,43 @@ public sealed class StoneGolemSandBurstAttack : MonoBehaviour
             new Color(0.74f, 0.42f, 0.08f, 0.8f));
         main.simulationSpace = ParticleSystemSimulationSpace.World;
 
-        ParticleSystem.EmissionModule emission = particles.emission;
-        emission.rateOverTime = 42f;
+        ParticleSystem.EmissionModule emission = windupParticles.emission;
+        emission.rateOverTime = 24f;
 
-        ParticleSystem.ShapeModule shape = particles.shape;
+        ParticleSystem.ShapeModule shape = windupParticles.shape;
         shape.shapeType = ParticleSystemShapeType.Sphere;
         shape.radius = 1.25f;
         shape.radiusThickness = 0.2f;
 
-        ParticleSystemRenderer renderer = particles.GetComponent<ParticleSystemRenderer>();
+        ParticleSystemRenderer renderer = windupParticles.GetComponent<ParticleSystemRenderer>();
         renderer.renderMode = ParticleSystemRenderMode.Billboard;
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+        renderer.allowOcclusionWhenDynamic = false;
+
         Shader shader = Resources.Load<Shader>("Shaders/GoldenSandParticle");
         if (shader == null)
-            shader = Shader.Find("Custom/Gigachad/Golden Sand Particle");
-        if (shader != null)
         {
-            Material material = new Material(shader)
-            {
-                name = "Runtime Sand Burst Windup Material"
-            };
-            material.SetFloat("_Softness", 0.28f);
-            renderer.sharedMaterial = material;
-            Destroy(material, lifetime + 0.3f);
+            shader = Shader.Find("Custom/Gigachad/Golden Sand Particle");
         }
 
-        particles.Play();
-        Destroy(windupObject, lifetime + 0.25f);
+        if (shader != null)
+        {
+            windupMaterial = new Material(shader)
+            {
+                name = "Runtime Sand Burst Windup Material",
+                hideFlags = HideFlags.HideAndDontSave
+            };
+
+            if (windupMaterial.HasProperty("_Softness"))
+            {
+                windupMaterial.SetFloat("_Softness", 0.28f);
+            }
+
+            renderer.sharedMaterial = windupMaterial;
+        }
     }
+
 
     /// <summary>Deterministic cluster pattern used by the attack and EditMode tests.</summary>
     public static Vector3[] BuildBurstOffsets(int count, float spread, float baseAngleDegrees)

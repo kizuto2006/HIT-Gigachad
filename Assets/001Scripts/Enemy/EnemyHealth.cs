@@ -18,6 +18,11 @@ public class EnemyHealth : MonoBehaviour
     [Tooltip("Prefab XP gem sẽ drop khi enemy chết. Để null nếu không drop.")]
     public GameObject xpGemPrefab;
 
+    [SerializeField] private bool dropBossRewards;
+    [SerializeField] private GameObject bossRewardChestPrefab;
+    [SerializeField, Min(1)] private int bossBonusXpGemCount = 12;
+    [SerializeField, Min(1)] private int bossBonusXpPerGem = 15;
+
     [Header("Hit Flash")]
     [SerializeField, Min(0.01f)] private float hitFlashDuration = 0.1f;
     [SerializeField] private Color hitFlashColor = Color.white;
@@ -44,6 +49,8 @@ public class EnemyHealth : MonoBehaviour
     private float runtimeHpMultiplier = 1f;
     private float runtimeAttackMultiplier = 1f;
     private float runtimeSpeedMultiplier = 1f;
+    private EnemyMiniBoss miniBossMarker;
+    private PlayerBaseStats playerStats;
 
     private bool isSpawnProtected;
 
@@ -53,7 +60,20 @@ public class EnemyHealth : MonoBehaviour
     public float MovementSpeed => data != null
         ? Mathf.Max(0f, data.speed * runtimeSpeedMultiplier)
         : 0f;
-    public bool IsMiniBoss => runtimeHpMultiplier > 1f;
+    public bool IsMiniBoss => miniBossMarker != null
+        ? miniBossMarker.IsMiniBoss
+        : runtimeHpMultiplier > 1f;
+
+    public void ConfigureBossRewards(
+        GameObject chestPrefab,
+        int gemCount,
+        int gemAmount)
+    {
+        dropBossRewards = chestPrefab != null;
+        bossRewardChestPrefab = chestPrefab;
+        bossBonusXpGemCount = Mathf.Max(1, gemCount);
+        bossBonusXpPerGem = Mathf.Max(1, gemAmount);
+    }
 
     public bool CanBeTargeted =>
         isActiveAndEnabled &&
@@ -66,6 +86,7 @@ public class EnemyHealth : MonoBehaviour
 
     private void Awake()
     {
+        miniBossMarker = GetComponent<EnemyMiniBoss>();
         CacheRenderers();
         CacheSizeTargets();
 
@@ -426,22 +447,27 @@ public void TakeDamage(float raw, bool isEliteDmg = false)
         }
     }
 
-private void Die()
+    private void Die()
     {
         if (isDead)
             return;
 
         isDead = true;
         Debug.Log($"{gameObject.name} died");
+        if (ShouldDropBorgar())
+            BorgarPickup.Spawn(transform.position);
 
+        PowerupDropService.TryDrop(transform.position, IsMiniBoss);
         if (xpGemPrefab != null && data != null)
         {
-            XPGem gem = XPGemPool.Spawn(xpGemPrefab, transform.position, Quaternion.identity);
-            if (gem != null)
-            {
-                gem.xpAmount = Mathf.Max(1, data.xpReward);
-            }
+            SpawnXpGem(transform.position, data.xpReward);
         }
+
+        if (dropBossRewards)
+            SpawnBossRewards();
+
+        if (PlayerCurrency.Instance != null)
+            PlayerCurrency.Instance.RegisterEnemyDefeat(IsMiniBoss);
 
         if (ownerSpawner != null)
         {
@@ -453,11 +479,74 @@ private void Die()
         }
     }
 
+    private void SpawnBossRewards()
+    {
+        if (bossRewardChestPrefab != null)
+        {
+            GameObject chestObject = Instantiate(
+                bossRewardChestPrefab,
+                transform.position,
+                Quaternion.identity);
+            ChestInteraction chest = chestObject.GetComponent<ChestInteraction>();
+            if (chest != null)
+                chest.ConfigureFreeReward();
+        }
 
-public float GetExpectedDamage(float rawDamage)
+        int gemCount = Mathf.Max(0, bossBonusXpGemCount);
+        for (int i = 0; i < gemCount; i++)
+        {
+            Vector2 scatter = Random.insideUnitCircle * 2f;
+            Vector3 spawnPosition = transform.position +
+                new Vector3(scatter.x, 0f, scatter.y);
+            SpawnXpGem(spawnPosition, bossBonusXpPerGem);
+        }
+    }
+
+    private void SpawnXpGem(Vector3 position, int amount)
+    {
+        XPGem gem = XPGemPool.Spawn(xpGemPrefab, position, Quaternion.identity);
+        if (gem != null)
+            gem.xpAmount = Mathf.Max(1, amount);
+    }
+
+
+    private bool ShouldDropBorgar()
+    {
+        PlayerBaseStats stats = ResolvePlayerStats();
+        return stats != null &&
+            stats.FinalBorgarDropChance > 0f &&
+            Random.value < stats.FinalBorgarDropChance;
+    }
+
+    private float GetMaxHealth()
+    {
+        return data != null ? Mathf.Max(0f, data.hp * GetHpMultiplier()) : 0f;
+    }
+
+    private PlayerBaseStats ResolvePlayerStats()
+    {
+        if (playerStats == null)
+        {
+            PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+            playerStats = playerHealth != null ? playerHealth.stats : null;
+        }
+
+        return playerStats;
+    }
+
+    public float GetExpectedDamage(float rawDamage)
     {
         if (data == null)
             return 0f;
+
+        PlayerBaseStats stats = ResolvePlayerStats();
+        if (stats != null && stats.FinalHighHealthEnemyDamageBonus > 0f)
+        {
+            float maxHealth = GetMaxHealth();
+            float healthRatio = maxHealth > 0f ? currentHp / maxHealth : 0f;
+            if (healthRatio >= stats.FinalHighHealthEnemyDamageThreshold)
+                rawDamage *= 1f + stats.FinalHighHealthEnemyDamageBonus;
+        }
 
         return Mathf.Max(0f, rawDamage - data.armor);
     }

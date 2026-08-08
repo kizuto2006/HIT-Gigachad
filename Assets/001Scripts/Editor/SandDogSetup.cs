@@ -298,8 +298,9 @@ internal static class SandDogSetup
             }
 
             sandDogType.prefab = sandDog;
-            sandDogType.earlyWeight = 20f;
-            sandDogType.lateWeight = 30f;
+            sandDogType.earlyWeight = 0f;
+            sandDogType.midWeight = 40f;
+            sandDogType.lateWeight = 15f;
             spawner.enemyTypes = types.ToArray();
             EditorUtility.SetDirty(spawner);
             PrefabUtility.SaveAsPrefabAsset(root, SpawnerPath);

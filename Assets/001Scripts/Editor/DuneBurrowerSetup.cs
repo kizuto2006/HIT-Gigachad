@@ -325,8 +325,9 @@ internal static class DuneBurrowerSetup
             }
 
             duneBurrowerType.prefab = duneBurrower;
-            duneBurrowerType.earlyWeight = 10f;
-            duneBurrowerType.lateWeight = 25f;
+            duneBurrowerType.earlyWeight = 0f;
+            duneBurrowerType.midWeight = 0f;
+            duneBurrowerType.lateWeight = 30f;
             spawner.enemyTypes = types.ToArray();
 
             EditorUtility.SetDirty(spawner);

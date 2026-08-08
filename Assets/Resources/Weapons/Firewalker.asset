@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   id: firewalker
   weaponName: Firewalker
-  description: Burns nearby enemies with flames under the player's feet.
+  description: Creates a burning zone under the player. Upgrades improve damage, area size and attack frequency.
   icon: {fileID: 21300000, guid: cc061035e5b4c9543843e8bcd4bdcbd5, type: 3}
   weaponType: 2
   rarity: 1
@@ -29,7 +29,7 @@ MonoBehaviour:
   maxAttackSpeedMultiplier: 2.5
   pierce: 0
   knockback: 0.15
-  duration: 0.75
+  duration: 0.5
   hitInterval: 0.25
   orbitRadius: 2
   orbitSpeed: 180
@@ -40,10 +40,10 @@ MonoBehaviour:
   projCountPerLevel: 0
   useAutomaticLevelUpgrades: 1
   automaticUpgradeStats: 11
-  automaticDamageBonus: 1.3
-  automaticSizeBonus: 0.1
+  automaticDamageBonus: 2
+  automaticSizeBonus: 0.15
   automaticProjectileSpeedBonus: 0.75
-  automaticCooldownReduction: 0.012
+  automaticCooldownReduction: 0.025
   automaticCriticalChanceBonus: 0.05
   automaticProjectileCountBonus: 1
   automaticKnockbackBonus: 0.12
@@ -54,7 +54,7 @@ MonoBehaviour:
   disableAutomaticProjectileCountUpgrades: 1
   automaticMaxProjectileCount: 1
   grantSecondProjectileAtLevel2: 0
-  attackType: 4
+  attackType: 5
   attackEffectPrefab: {fileID: 7994844134158460895, guid: 6c64559719fa0f7418a5cdc286e26af1, type: 3}
   projectilePrefab: {fileID: 0}
   attackAnimation: {fileID: 0}

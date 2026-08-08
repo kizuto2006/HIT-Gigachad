@@ -52,6 +52,9 @@ public sealed class StoneGolemSeismicRingAttack : MonoBehaviour
 
     private void Update()
     {
+        if (PlayerPowerupController.AreEnemyActionsFrozen)
+            return;
+
         if (isAttacking || Time.time < nextAttackTime)
             return;
 
@@ -80,6 +83,12 @@ public sealed class StoneGolemSeismicRingAttack : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < telegraphDuration)
         {
+            if (PlayerPowerupController.AreEnemyActionsFrozen)
+            {
+                yield return null;
+                continue;
+            }
+
             elapsed += Time.deltaTime;
             float pulse = 0.75f + Mathf.Sin(elapsed * 18f) * 0.25f;
             LineRenderer[] lines = telegraph.GetComponentsInChildren<LineRenderer>();
@@ -119,6 +128,12 @@ public sealed class StoneGolemSeismicRingAttack : MonoBehaviour
 
         while (elapsed < pulseTravelDuration)
         {
+            if (PlayerPowerupController.AreEnemyActionsFrozen)
+            {
+                yield return null;
+                continue;
+            }
+
             elapsed += Time.deltaTime;
             float progress = Mathf.Clamp01(elapsed / pulseTravelDuration);
             float currentRadius = Mathf.Lerp(0.15f, finalRadius, progress);
@@ -156,6 +171,9 @@ public sealed class StoneGolemSeismicRingAttack : MonoBehaviour
 
     private void ApplyDamage(float damage, Vector3 knockbackDirection)
     {
+        if (PlayerPowerupController.AreEnemyActionsFrozen)
+            return;
+
         if (target == null)
             return;
 

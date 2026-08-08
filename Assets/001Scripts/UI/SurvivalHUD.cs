@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -13,6 +14,8 @@ public class SurvivalHUD : MonoBehaviour
     [SerializeField] private XPSystem xpSystem;
     [SerializeField] private WeaponInventory weaponInventory;
     [SerializeField] private PlayerTomeInventory tomeInventory;
+    [SerializeField] private PlayerItemInventory itemInventory;
+    [SerializeField] private PlayerCurrency playerCurrency;
 
     [Header("HUD References")]
     [SerializeField] private Image healthFill;
@@ -23,13 +26,25 @@ public class SurvivalHUD : MonoBehaviour
     [SerializeField] private TMP_Text experienceText;
     [SerializeField] private TMP_Text levelText;
     [SerializeField] private TMP_Text timerText;
-    
+    [SerializeField] private TMP_Text goldText;
+
+    [SerializeField] private TMP_Text coinsText;
+    [SerializeField] private TMP_Text enemiesDefeatedText;
+
     [Header("Health Bar Animation")]
     [SerializeField, Min(1f)] private float healthFillAnimationSpeed = 10f;
     private float targetHealthFill = 1f;
     private float currentHealthFill = 1f;
-    [SerializeField] private HUDItemSlot[] weaponSlots = new HUDItemSlot[2];
-    [SerializeField] private HUDItemSlot[] tomeSlots = new HUDItemSlot[2];
+    [SerializeField] private HUDItemSlot[] weaponSlots = new HUDItemSlot[4];
+    [SerializeField] private HUDItemSlot[] tomeSlots = new HUDItemSlot[4];
+    [SerializeField] private RectTransform itemSlotsPanel;
+    private RectTransform itemSlotsContent;
+    private ScrollRect itemSlotsScrollRect;
+
+
+    private const int StartingVisibleInventorySlots = 2;
+    private const int MaximumInventorySlots = 4;
+    private readonly List<HUDItemSlot> itemSlots = new List<HUDItemSlot>();
 
     private float elapsedTime;
     private float targetExperienceFill;
@@ -55,8 +70,15 @@ public class SurvivalHUD : MonoBehaviour
         if (tomeInventory == null)
             tomeInventory = FindFirstObjectByType<PlayerTomeInventory>();
 
+        if (itemInventory == null)
+            itemInventory = FindFirstObjectByType<PlayerItemInventory>();
+
+        if (playerCurrency == null)
+            playerCurrency = FindFirstObjectByType<PlayerCurrency>();
+
         FindWeaponSlots();
         FindTomeSlots();
+        FindOrCreateItemSlotsPanel();
     }
 
     private void ConfigureHealthBar()
@@ -130,6 +152,8 @@ public class SurvivalHUD : MonoBehaviour
 
     private void OnEnable()
     {
+        FindCoinText();
+
         if (xpSystem != null)
         {
             xpSystem.OnXPChanged += HandleXPChanged;
@@ -142,9 +166,21 @@ public class SurvivalHUD : MonoBehaviour
         if (tomeInventory != null)
             tomeInventory.TomesChanged += RefreshTomeSlots;
 
+        if (itemInventory != null)
+            itemInventory.ItemsChanged += RefreshItemSlots;
+
+        if (playerCurrency != null)
+        {
+            playerCurrency.GoldChanged += RefreshGold;
+            playerCurrency.EnemiesDefeatedChanged += RefreshEnemiesDefeated;
+            playerCurrency.CoinsChanged += RefreshCoins;
+        }
+
         RefreshExperience(true);
         RefreshWeaponSlots();
         RefreshTomeSlots();
+        RefreshItemSlots();
+        RefreshProgressCounters();
     }
 
     private void OnDisable()
@@ -160,6 +196,16 @@ public class SurvivalHUD : MonoBehaviour
 
         if (tomeInventory != null)
             tomeInventory.TomesChanged -= RefreshTomeSlots;
+
+        if (itemInventory != null)
+            itemInventory.ItemsChanged -= RefreshItemSlots;
+
+        if (playerCurrency != null)
+        {
+            playerCurrency.GoldChanged -= RefreshGold;
+            playerCurrency.EnemiesDefeatedChanged -= RefreshEnemiesDefeated;
+            playerCurrency.CoinsChanged -= RefreshCoins;
+        }
     }
 
     private void Update()
@@ -283,36 +329,257 @@ public class SurvivalHUD : MonoBehaviour
             levelText.text = $"LEVEL {xpSystem.CurrentLevel:00}";
     }
 
-    private void FindWeaponSlots()
+    private void RefreshProgressCounters()
     {
-        if (weaponSlots == null || weaponSlots.Length != 2)
-            weaponSlots = new HUDItemSlot[2];
+        if (playerCurrency == null)
+            return;
 
-        if (weaponSlots[0] == null)
+        RefreshGold(playerCurrency.Gold);
+        RefreshEnemiesDefeated(playerCurrency.EnemiesDefeated);
+        RefreshCoins(playerCurrency.Coins);
+    }
+
+    private void RefreshGold(int gold)
+    {
+        if (goldText != null)
+            goldText.text = Mathf.Max(0, gold).ToString();
+    }
+
+    private void RefreshEnemiesDefeated(int defeated)
+    {
+        if (enemiesDefeatedText != null)
+            enemiesDefeatedText.text = Mathf.Max(0, defeated).ToString();
+    }
+
+    private void RefreshCoins(int coins)
+    {
+        if (coinsText != null)
+            coinsText.text = Mathf.Max(0, coins).ToString();
+    }
+
+    private void FindCoinText()
+    {
+        if (coinsText != null)
+            return;
+
+        Transform coinAmount = transform.Find("ProgressCounters/CoinCounter/CoinAmount");
+        if (coinAmount != null)
+            coinsText = coinAmount.GetComponent<TMP_Text>();
+    }
+
+
+
+    private void FindOrCreateItemSlotsPanel()
+    {
+        if (itemSlotsPanel == null)
         {
-            Transform firstSlot = transform.Find("PlayerStatusPanel/InventoryPanel/WeaponSlotsPanel/WeaponSlot_01");
-            if (firstSlot != null)
-                weaponSlots[0] = firstSlot.GetComponent<HUDItemSlot>();
+            Transform inventoryPanel = transform.Find("PlayerStatusPanel/InventoryPanel");
+            if (inventoryPanel == null)
+                return;
+
+            Transform existingPanel = inventoryPanel.Find("ItemSlotsPanel");
+            if (existingPanel != null)
+            {
+                itemSlotsPanel = existingPanel.GetComponent<RectTransform>();
+            }
+            else
+            {
+                GameObject panelObject = new GameObject(
+                    "ItemSlotsPanel",
+                    typeof(RectTransform),
+                    typeof(Image),
+                    typeof(Mask),
+                    typeof(ScrollRect));
+                panelObject.transform.SetParent(inventoryPanel, false);
+                itemSlotsPanel = panelObject.GetComponent<RectTransform>();
+
+                Image panelImage = panelObject.GetComponent<Image>();
+                panelImage.color = new Color(0f, 0f, 0f, 0.28f);
+                panelImage.raycastTarget = false;
+
+                Mask mask = panelObject.GetComponent<Mask>();
+                mask.showMaskGraphic = false;
+            }
         }
 
-        if (weaponSlots[1] == null)
+        itemSlotsPanel.anchorMin = new Vector2(0f, 1f);
+        itemSlotsPanel.anchorMax = new Vector2(1f, 1f);
+        itemSlotsPanel.pivot = new Vector2(0.5f, 1f);
+        itemSlotsPanel.anchoredPosition = new Vector2(0f, -211f);
+        itemSlotsPanel.sizeDelta = new Vector2(0f, 80f);
+
+        if (itemSlotsContent == null)
         {
-            Transform secondSlot = transform.Find("PlayerStatusPanel/InventoryPanel/WeaponSlotsPanel/WeaponSlot_02");
-            if (secondSlot != null)
-                weaponSlots[1] = secondSlot.GetComponent<HUDItemSlot>();
+            Transform existingContent = itemSlotsPanel.Find("Content");
+            if (existingContent != null)
+                itemSlotsContent = existingContent.GetComponent<RectTransform>();
+            else
+            {
+                GameObject contentObject = new GameObject(
+                    "Content",
+                    typeof(RectTransform),
+                    typeof(HorizontalLayoutGroup));
+                contentObject.transform.SetParent(itemSlotsPanel, false);
+                itemSlotsContent = contentObject.GetComponent<RectTransform>();
+            }
+        }
+
+        itemSlotsContent.anchorMin = new Vector2(0f, 0f);
+        itemSlotsContent.anchorMax = new Vector2(0f, 1f);
+        itemSlotsContent.pivot = new Vector2(0f, 0.5f);
+        itemSlotsContent.anchoredPosition = Vector2.zero;
+        itemSlotsContent.sizeDelta = new Vector2(344f, 0f);
+
+        HorizontalLayoutGroup layout = itemSlotsContent.GetComponent<HorizontalLayoutGroup>();
+        layout.spacing = 8f;
+        layout.padding = new RectOffset(4, 4, 0, 0);
+        layout.childAlignment = TextAnchor.MiddleLeft;
+        layout.childControlWidth = false;
+        layout.childControlHeight = false;
+        layout.childForceExpandWidth = false;
+        layout.childForceExpandHeight = false;
+
+        if (itemSlotsScrollRect == null)
+            itemSlotsScrollRect = itemSlotsPanel.GetComponent<ScrollRect>();
+        if (itemSlotsScrollRect != null)
+        {
+            itemSlotsScrollRect.viewport = itemSlotsPanel;
+            itemSlotsScrollRect.content = itemSlotsContent;
+            itemSlotsScrollRect.horizontal = true;
+            itemSlotsScrollRect.vertical = false;
+            itemSlotsScrollRect.movementType = ScrollRect.MovementType.Clamped;
+            itemSlotsScrollRect.inertia = true;
+            itemSlotsScrollRect.scrollSensitivity = 24f;
+        }
+    }
+
+    private HUDItemSlot CreateItemSlot(int index)
+    {
+        GameObject slotObject = new GameObject(
+            $"ItemSlot_{index + 1:00}",
+            typeof(RectTransform),
+            typeof(Image),
+            typeof(HUDItemSlot));
+        slotObject.transform.SetParent(itemSlotsContent, false);
+
+        RectTransform slotRect = slotObject.GetComponent<RectTransform>();
+        slotRect.sizeDelta = new Vector2(80f, 80f);
+
+        Image background = slotObject.GetComponent<Image>();
+        background.color = new Color(0.035f, 0.045f, 0.06f, 0.88f);
+        background.raycastTarget = false;
+
+        GameObject iconObject = new GameObject("ItemIcon", typeof(RectTransform), typeof(Image));
+        iconObject.transform.SetParent(slotObject.transform, false);
+        RectTransform iconRect = iconObject.GetComponent<RectTransform>();
+        iconRect.anchorMin = new Vector2(0f, 0f);
+        iconRect.anchorMax = new Vector2(1f, 1f);
+        iconRect.offsetMin = new Vector2(8f, 12f);
+        iconRect.offsetMax = new Vector2(-8f, -8f);
+
+        Image icon = iconObject.GetComponent<Image>();
+        icon.preserveAspect = true;
+        icon.raycastTarget = false;
+
+        HUDItemSlot hudSlot = slotObject.GetComponent<HUDItemSlot>();
+        hudSlot.Configure(icon);
+        return hudSlot;
+    }
+
+    private void RefreshItemSlots()
+    {
+        FindOrCreateItemSlotsPanel();
+        if (itemSlotsPanel == null || itemInventory == null)
+            return;
+
+        int nextVisibleCount = 0;
+        IReadOnlyList<ItemStackState> ownedItems = itemInventory.OwnedItems;
+        for (int i = 0; i < ownedItems.Count; i++)
+        {
+            ItemStackState state = ownedItems[i];
+            if (state == null || state.item == null || state.stackCount <= 0)
+                continue;
+
+            while (itemSlots.Count <= nextVisibleCount)
+                itemSlots.Add(CreateItemSlot(itemSlots.Count));
+
+            HUDItemSlot slot = itemSlots[nextVisibleCount];
+            slot.gameObject.SetActive(true);
+            slot.SetIcon(state.item.icon);
+            slot.SetStackCount(state.stackCount);
+            nextVisibleCount++;
+        }
+
+        for (int i = nextVisibleCount; i < itemSlots.Count; i++)
+        {
+            itemSlots[i].SetIcon(null);
+            itemSlots[i].SetStackCount(0);
+            itemSlots[i].gameObject.SetActive(false);
+        }
+
+        if (itemSlotsContent != null)
+        {
+            float requiredWidth = Mathf.Max(
+                itemSlotsPanel.rect.width,
+                8f + nextVisibleCount * 80f + Mathf.Max(0, nextVisibleCount - 1) * 8f);
+            itemSlotsContent.sizeDelta = new Vector2(requiredWidth, 0f);
+        }
+
+        itemSlotsPanel.gameObject.SetActive(nextVisibleCount > 0);
+        if (nextVisibleCount > 0 && itemSlotsScrollRect != null)
+        {
+            Canvas.ForceUpdateCanvases();
+            itemSlotsScrollRect.horizontalNormalizedPosition = 1f;
+        }
+    }
+
+    private void FindWeaponSlots()
+    {
+        if(weaponSlots == null || weaponSlots.Length != MaximumInventorySlots)
+            weaponSlots = new HUDItemSlot[MaximumInventorySlots];
+
+        Transform panel = transform.Find("PlayerStatusPanel/InventoryPanel/WeaponSlotsPanel");
+        if(panel == null)
+            return;
+
+        for(int i = 0; i < StartingVisibleInventorySlots; i++)
+        {
+            if(weaponSlots[i] != null)
+                continue;
+
+            Transform slot = panel.Find("WeaponSlot_" + (i + 1).ToString("00"));
+            if(slot != null)
+                weaponSlots[i] = slot.GetComponent<HUDItemSlot>();
+        }
+
+        HUDItemSlot template = weaponSlots[StartingVisibleInventorySlots - 1];
+        for(int i = StartingVisibleInventorySlots; i < MaximumInventorySlots; i++)
+        {
+            if(weaponSlots[i] == null)
+                weaponSlots[i] = CreateAdditionalSlot(panel, template, "WeaponSlot", i);
         }
     }
 
     private void RefreshWeaponSlots()
     {
-        if (weaponSlots == null)
+        if(weaponSlots == null)
             return;
 
-        for (int i = 0; i < weaponSlots.Length; i++)
+        int visibleSlotCount = ShopUI.GetUnlockedSlotCount(true, StartingVisibleInventorySlots, MaximumInventorySlots);
+        for(int i = 0; i < weaponSlots.Length; i++)
         {
             HUDItemSlot hudSlot = weaponSlots[i];
-            if (hudSlot == null)
+            if(hudSlot == null)
                 continue;
+
+            bool unlocked = i < visibleSlotCount;
+            hudSlot.gameObject.SetActive(unlocked);
+            if(!unlocked)
+            {
+                hudSlot.SetIcon(null);
+                hudSlot.SetLevel(0);
+                continue;
+            }
 
             WeaponBehaviour equippedWeapon = weaponInventory != null
                 ? weaponInventory.GetWeaponAtSlot(i)
@@ -327,41 +594,58 @@ public class SurvivalHUD : MonoBehaviour
 
     private void FindTomeSlots()
     {
-        if (tomeSlots == null || tomeSlots.Length != 2)
-            tomeSlots = new HUDItemSlot[2];
+        if(tomeSlots == null || tomeSlots.Length != MaximumInventorySlots)
+            tomeSlots = new HUDItemSlot[MaximumInventorySlots];
 
-        if (tomeSlots[0] == null)
+        Transform panel = transform.Find("PlayerStatusPanel/InventoryPanel/UpgradeBookSlotsPanel");
+        if(panel == null)
+            return;
+
+        for(int i = 0; i < StartingVisibleInventorySlots; i++)
         {
-            Transform firstSlot = transform.Find("PlayerStatusPanel/InventoryPanel/UpgradeBookSlotsPanel/UpgradeBookSlot_01");
-            if (firstSlot != null)
-                tomeSlots[0] = firstSlot.GetComponent<HUDItemSlot>();
+            if(tomeSlots[i] != null)
+                continue;
+
+            Transform slot = panel.Find("UpgradeBookSlot_" + (i + 1).ToString("00"));
+            if(slot != null)
+                tomeSlots[i] = slot.GetComponent<HUDItemSlot>();
         }
 
-        if (tomeSlots[1] == null)
+        HUDItemSlot template = tomeSlots[StartingVisibleInventorySlots - 1];
+        for(int i = StartingVisibleInventorySlots; i < MaximumInventorySlots; i++)
         {
-            Transform secondSlot = transform.Find("PlayerStatusPanel/InventoryPanel/UpgradeBookSlotsPanel/UpgradeBookSlot_02");
-            if (secondSlot != null)
-                tomeSlots[1] = secondSlot.GetComponent<HUDItemSlot>();
+            if(tomeSlots[i] == null)
+                tomeSlots[i] = CreateAdditionalSlot(panel, template, "UpgradeBookSlot", i);
         }
     }
 
     private void RefreshTomeSlots()
     {
-        if (tomeSlots == null)
+        if(tomeSlots == null)
             return;
 
-        for (int i = 0; i < tomeSlots.Length; i++)
+        int visibleSlotCount = ShopUI.GetUnlockedSlotCount(false, StartingVisibleInventorySlots, MaximumInventorySlots);
+        for(int i = 0; i < tomeSlots.Length; i++)
         {
             HUDItemSlot hudSlot = tomeSlots[i];
-            if (hudSlot == null)
+            if(hudSlot == null)
                 continue;
+
+            bool unlocked = i < visibleSlotCount;
+            hudSlot.gameObject.SetActive(unlocked);
+            if(!unlocked)
+            {
+                hudSlot.SetIcon(null);
+                hudSlot.SetLevel(0);
+                continue;
+            }
 
             TomeData tome = null;
             int tomeLevel = 0;
-            if (tomeInventory != null && i < tomeInventory.OwnedTomes.Count)
+            if(tomeInventory != null && i < tomeInventory.OwnedTomes.Count)
             {
                 TomeLevelState state = tomeInventory.OwnedTomes[i];
-                if (state != null)
+                if(state != null)
                 {
                     tome = state.tome;
                     tomeLevel = state.level;
@@ -371,5 +655,33 @@ public class SurvivalHUD : MonoBehaviour
             hudSlot.SetIcon(tome != null ? tome.icon : null);
             hudSlot.SetLevel(tome != null ? tomeLevel : 0);
         }
+    }
+
+
+    private HUDItemSlot CreateAdditionalSlot(Transform parent, HUDItemSlot template, string slotPrefix, int index)
+    {
+        if(parent == null || template == null)
+            return null;
+
+        GameObject slotObject = Instantiate(template.gameObject, parent, false);
+        slotObject.name = slotPrefix + "_" + (index + 1).ToString("00");
+        RectTransform slotRect = slotObject.GetComponent<RectTransform>();
+        if(slotRect != null)
+        {
+            slotRect.anchorMin = new Vector2(0f, 1f);
+            slotRect.anchorMax = new Vector2(0f, 1f);
+            slotRect.pivot = new Vector2(0f, 1f);
+            slotRect.anchoredPosition = new Vector2(index * 92f, 0f);
+            slotRect.sizeDelta = new Vector2(80f, 80f);
+        }
+
+        slotObject.SetActive(false);
+        HUDItemSlot slot = slotObject.GetComponent<HUDItemSlot>();
+        if(slot != null)
+        {
+            slot.SetIcon(null);
+            slot.SetLevel(0);
+        }
+        return slot;
     }
 }

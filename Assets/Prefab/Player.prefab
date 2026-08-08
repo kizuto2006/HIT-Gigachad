@@ -237,6 +237,7 @@ GameObject:
   - component: {fileID: 1633621566093834073}
   - component: {fileID: 264348252389459080}
   - component: {fileID: 619575073731155978}
+  - component: {fileID: 891532695778227800}
   m_Layer: 0
   m_Name: CinemachineCamera
   m_TagString: Untagged
@@ -283,7 +284,7 @@ MonoBehaviour:
     LookAtTarget: {fileID: 0}
     CustomLookAtTarget: 0
   Lens:
-    FieldOfView: 60.000004
+    FieldOfView: 64
     OrthographicSize: 5
     NearClipPlane: 0.3
     FarClipPlane: 400
@@ -319,10 +320,10 @@ MonoBehaviour:
     BindingMode: 4
     PositionDamping: {x: 0.1, y: 0.18, z: 0.1}
     AngularDampingMode: 0
-    RotationDamping: {x: 1, y: 1, z: 1}
+    RotationDamping: {x: 1.2, y: 1.2, z: 1.2}
     QuaternionDamping: 1
   OrbitStyle: 0
-  Radius: 10.31
+  Radius: 11
   Orbits:
     Top:
       Radius: 2
@@ -348,7 +349,7 @@ MonoBehaviour:
   VerticalAxis:
     Value: 17.5
     Center: 17.5
-    Range: {x: -10, y: 80}
+    Range: {x: -10, y: 75}
     Wrap: 0
     Recentering:
       Enabled: 0
@@ -459,19 +460,19 @@ MonoBehaviour:
         CancelDeltaTime: 1
       InputValue: 0
       Driver:
-        AccelTime: 0.055
-        DecelTime: 0.09
+        AccelTime: 0.04
+        DecelTime: 0.08
     - Name: Look Orbit Y
       Owner: {fileID: 4980928299053342728}
       Enabled: 1
       Input:
         InputAction: {fileID: -5630151704836100654, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-        Gain: 0.05
+        Gain: -0.05
         CancelDeltaTime: 1
       InputValue: 0
       Driver:
-        AccelTime: 0.065
-        DecelTime: 0.1
+        AccelTime: 0.045
+        DecelTime: 0.09
     - Name: Orbit Scale
       Owner: {fileID: 4980928299053342728}
       Enabled: 1
@@ -485,6 +486,26 @@ MonoBehaviour:
         DecelTime: 0
   PlayerIndex: -1
   AutoEnableInputs: 1
+--- !u!114 &891532695778227800
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1045086085621221835}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ad3f021d9b6a90246b26747652677eff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AdaptiveCameraLookFilter
+  filterInput: 1
+  mouseNoiseThreshold: 0.5
+  gamepadDeadzone: 0.12
+  smallInputSmoothing: 0.06
+  mouseLargeInputThreshold: 4
+  gamepadLargeInputThreshold: 0.35
+  largeInputSmoothing: 0.012
+  allowCameraShake: 0
 --- !u!1 &1415036803624879802
 GameObject:
   m_ObjectHideFlags: 0
@@ -1497,6 +1518,10 @@ GameObject:
   - component: {fileID: 8927827561009508240}
   - component: {fileID: 5240835273377066106}
   - component: {fileID: 6151394319823545744}
+  - component: {fileID: 2226261287316021213}
+  - component: {fileID: 8072267340234407741}
+  - component: {fileID: 7144766173789882666}
+  - component: {fileID: 4656559163615223148}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -1625,19 +1650,25 @@ MonoBehaviour:
   groundBraking: 55
   groundTurnSpeed: 720
   reverseBrakingMultiplier: 1.4
-  turnSpeedLoss: 0.1
+  reverseMomentumBrakeMultiplier: 0.35
+  turnSpeedLoss: 0.05
   airForwardAcceleration: 0.5
   airLateralAcceleration: 0.35
   airCounterMomentumBraking: 1.5
   maximumAirDirectionInfluence: 0.05
   normalJumpMomentumRetention: 1
-  normalJumpSpeedBoost: 0.75
-  normalJumpMaxSpeedMultiplier: 1.1
+  normalJumpSpeedBoost: 1.25
+  normalJumpMaxSpeedMultiplier: 1.4
   bunnyHopMomentumRetention: 1
   enableBunnyHop: 1
-  bunnyHopWindow: 0.12
-  bunnyHopSpeedBoost: 0.75
-  bunnyHopMaxSpeedMultiplier: 1.15
+  allowHeldBunnyHop: 0
+  bunnyHopWindow: 0.2
+  bunnyHopSpeedBoost: 0.45
+  bunnyHopStartSpeedMultiplier: 1.55
+  bunnyHopSpeedStepMultiplier: 0.15
+  bunnyHopMaxSpeedMultiplier: 1.85
+  bunnyHopChainResetDelay: 0.3
+  bunnyHopAirTurnSpeed: 300
   minimumAirTimeForBunnyHop: 0.1
   gravity: -20
   speedJumpBonusMultiplier: 0
@@ -1650,8 +1681,12 @@ MonoBehaviour:
   maxVisualSlopeAngle: 45
   visualGroundSnapDistance: 0.75
   coyoteTime: 0.15
-  jumpBufferTime: 0.15
+  jumpBufferTime: 0.2
   fallTimeThreshold: 0.3
+  enableJumpParticles: 1
+  normalJumpParticleCount: 12
+  bunnyHopBaseParticleCount: 16
+  bunnyHopParticlesPerChain: 4
 --- !u!114 &9000000000000000001
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1845,6 +1880,7 @@ MonoBehaviour:
   xpSystem: {fileID: 0}
   weaponController: {fileID: 9000000000000000002}
   tomeInventory: {fileID: 8927827561009508240}
+  itemInventory: {fileID: 0}
   upgradeUIPrefab: {fileID: 8312915107919633278, guid: 91637dff01e3dec4cbe643fcc35d655a, type: 3}
   allWeapons:
   - {fileID: 11400000, guid: 401d413b2ba143c19e2f9d9c93141c19, type: 2}
@@ -1852,6 +1888,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ed0b157eaef666b4488e984cff57e191, type: 2}
   - {fileID: 11400000, guid: 26c6441acd2bc3b47bcbacc980a0a7be, type: 2}
   - {fileID: 11400000, guid: 95e7a808f430f7145b5630a7d79a7248, type: 2}
+  - {fileID: 11400000, guid: 0494c0189d4b9fa41ae78fd56b2769df, type: 2}
   allTomes:
   - {fileID: 11400000, guid: dcc6a92917946a84485ff266fc0f5be6, type: 2}
   - {fileID: 11400000, guid: 6079bae6ade8a1f4ca9cb6f1f76fa470, type: 2}
@@ -1861,8 +1898,14 @@ MonoBehaviour:
   - {fileID: 11400000, guid: f2d27c7879c9400c96d35ce8a736ca87, type: 2}
   - {fileID: 11400000, guid: 139f11f8b4d24b8fb7c3a5e581561b07, type: 2}
   - {fileID: 11400000, guid: 73e41166a97942799ecf476940029610, type: 2}
+  allItems: []
   optionsPerLevel: 3
   pauseGameWhileChoosing: 1
+  commonRarityWeight: 59
+  uncommonRarityWeight: 25
+  rareRarityWeight: 12
+  epicRarityWeight: 3
+  legendaryRarityWeight: 1
 --- !u!114 &6151394319823545744
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1877,6 +1920,62 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MegabonkSteppedAnimator
   framesPerSecond: 12
   targetAnimator: {fileID: 0}
+--- !u!114 &2226261287316021213
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6101822297866704205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4d8af69992cd1d44b9c0af95568bc41, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerCurrency
+  startingGold: 0
+  normalEnemyGold: 1
+  eliteEnemyGold: 5
+--- !u!114 &8072267340234407741
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6101822297866704205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 610abdb3ef578ec4594f9a687d1e3c47, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerItemInventory
+  playerStats: {fileID: 0}
+  playerHealth: {fileID: 0}
+  ownedItems: []
+--- !u!114 &7144766173789882666
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6101822297866704205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2f09235ccf41aa94f9b4726be1071b51, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerPowerupController
+  playerStats: {fileID: 0}
+  vfxController: {fileID: 0}
+--- !u!114 &4656559163615223148
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6101822297866704205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 658211f4bb2f8814fbd0969a192a5dee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PowerupVfxController
 --- !u!1 &6227649464860532485
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11e7ec8d3859aab4db4fc818a1bd0d40, type: 3}
+  m_Name: SlipperyRing
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemName: Slippery Ring
+  description: Increases dodge chance by 15%.
+  icon: {fileID: 21300000, guid: 9c17c9e487aa98e4fa920a413524c3d0, type: 3}
+  rarity: 0
+  effectType: 5
+  valueType: 0
+  valuePerLevel: 0.15
+  maxLevel: 99
+  conditionThreshold: 0
+  chestWeight: 1

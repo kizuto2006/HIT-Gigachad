@@ -52,6 +52,12 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < telegraphDuration)
         {
+            if (PlayerPowerupController.AreEnemyActionsFrozen)
+            {
+                yield return null;
+                continue;
+            }
+
             elapsed += Time.deltaTime;
             float progress = Mathf.Clamp01(elapsed / telegraphDuration);
             float pulse = 1f + Mathf.Sin(progress * Mathf.PI * 8f) * 0.035f;
@@ -123,6 +129,11 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
 
     private void ApplyDamage()
     {
+        if (PlayerPowerupController.AreEnemyActionsFrozen)
+        {
+            return;
+        }
+
         int hitCount = Physics.OverlapSphereNonAlloc(
             transform.position,
             radius,
@@ -201,7 +212,7 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
 
         ParticleSystem.EmissionModule emission = particles.emission;
         emission.rateOverTime = 0f;
-        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)110) });
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)55) });
 
         ParticleSystem.ShapeModule shape = particles.shape;
         shape.shapeType = ParticleSystemShapeType.Cone;
@@ -236,7 +247,7 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
 
         ParticleSystem.EmissionModule emission = particles.emission;
         emission.rateOverTime = 0f;
-        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)72) });
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)36) });
 
         ParticleSystem.ShapeModule shape = particles.shape;
         shape.shapeType = ParticleSystemShapeType.Circle;
@@ -269,7 +280,7 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
 
         ParticleSystem.EmissionModule emission = particles.emission;
         emission.rateOverTime = 0f;
-        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)30) });
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)18) });
 
         ParticleSystem.ShapeModule shape = particles.shape;
         shape.shapeType = ParticleSystemShapeType.Hemisphere;
@@ -334,9 +345,15 @@ public sealed class StoneGolemSandBurstZone : MonoBehaviour
         particleObject.transform.SetParent(transform, false);
         ParticleSystem particles = particleObject.AddComponent<ParticleSystem>();
         particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        ParticleSystem.MainModule main = particles.main;
+        main.maxParticles = 64;
+        main.cullingMode = ParticleSystemCullingMode.Automatic;
         ParticleSystemRenderer renderer = particles.GetComponent<ParticleSystemRenderer>();
         renderer.renderMode = ParticleSystemRenderMode.Billboard;
         renderer.sortMode = ParticleSystemSortMode.Distance;
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+        renderer.allowOcclusionWhenDynamic = false;
         renderer.sharedMaterial = CreateParticleMaterial();
         return particles;
     }

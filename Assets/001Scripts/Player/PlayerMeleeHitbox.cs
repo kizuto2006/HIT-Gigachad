@@ -43,7 +43,13 @@ public class PlayerMeleeHitbox : MonoBehaviour
 
     void Update()
     {
-        if (attackAction.WasPressedThisFrame() && Time.time >= lastAttackTime + attackCooldown)
+        float attackSpeedMultiplier =
+            PlayerPowerupController.GetAttackSpeedMultiplierFor(transform);
+        float effectiveCooldown = attackCooldown /
+            Mathf.Max(0.01f, attackSpeedMultiplier);
+
+        if (attackAction.WasPressedThisFrame() &&
+            Time.time >= lastAttackTime + effectiveCooldown)
         {
             Attack();
         }
@@ -53,7 +59,8 @@ public class PlayerMeleeHitbox : MonoBehaviour
     {
         lastAttackTime = Time.time;
 
-        float damage = stats.FinalAtk;
+        float damage = stats.FinalAtk *
+            PlayerPowerupController.GetDamageMultiplierFor(transform);
         Collider[] hits = Physics.OverlapSphere(transform.position, hitboxRadius, enemyLayer);
 
         int hitCount = 0;

@@ -21,6 +21,7 @@ public sealed class GameManager : MonoBehaviour
     [SerializeField] private GameObject deadCanvasPrefab;
 
     private PlayerHealth playerHealth;
+    private PlayerCurrency playerCurrency;
     private GameObject deadCanvasInstance;
     private bool handlingDeath;
 
@@ -94,12 +95,13 @@ private void DetachFromParentForPersistence()
             Instance = null;
     }
 
-    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         Time.timeScale = 1f;
         handlingDeath = false;
         if (scene.name == desertSceneName)
         {
+            PauseUIController.EnsureForGameplay();
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
@@ -119,9 +121,11 @@ private void DetachFromParentForPersistence()
             playerHealth.Died -= HandlePlayerDied;
 
         playerHealth = null;
+        playerCurrency = null;
         if (scene.name == desertSceneName)
         {
             playerHealth = FindFirstObjectByType<PlayerHealth>();
+            playerCurrency = FindFirstObjectByType<PlayerCurrency>();
             if (playerHealth != null)
                 playerHealth.Died += HandlePlayerDied;
             else
@@ -129,13 +133,30 @@ private void DetachFromParentForPersistence()
         }
     }
 
-    private void HandlePlayerDied()
+private int AwardRunRewardIfNeeded()
+    {
+        if (playerCurrency == null)
+            playerCurrency = FindFirstObjectByType<PlayerCurrency>();
+
+        if (playerCurrency == null)
+            return 0;
+
+        int reward = playerCurrency.AwardRunReward(Time.timeSinceLevelLoad);
+        if (reward > 0)
+            Debug.Log("[GameManager] Run ended after " + Time.timeSinceLevelLoad.ToString("0.0") + "s; awarded " + reward + " coin(s).");
+        return reward;
+    }
+
+
+private void HandlePlayerDied()
     {
         if (handlingDeath)
             return;
 
         handlingDeath = true;
-        Debug.Log("[GameManager] Player died; showing DeadCanvas.");
+        MusicAudioManager.Instance?.StopMusic();
+        AwardRunRewardIfNeeded();
+
         Time.timeScale = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -148,51 +169,23 @@ private void DetachFromParentForPersistence()
             return;
         }
 
-        deadCanvasInstance.SetActive(true);
+        deadCanvasInstance.SetActive(false);
         if (deadCanvasInstance.transform is RectTransform canvasTransform)
             canvasTransform.localScale = Vector3.one;
 
         Canvas canvas = deadCanvasInstance.GetComponent<Canvas>();
         if (canvas != null)
+        {
+            canvas.overrideSorting = true;
             canvas.sortingOrder = 1000;
-
-        Transform intro = deadCanvasInstance.transform.Find("Intro");
-        Transform overoll = deadCanvasInstance.transform.Find("Overoll");
-
-        if (intro != null && overoll != null)
-        {
-            intro.gameObject.SetActive(true);
-            overoll.gameObject.SetActive(false);
-
-            Button introBtn = intro.Find("btnConfirm") != null ? intro.Find("btnConfirm").GetComponent<Button>() : null;
-            Button overollBtn = overoll.Find("btnConfirm") != null ? overoll.Find("btnConfirm").GetComponent<Button>() : null;
-
-            if (introBtn != null)
-            {
-                introBtn.onClick.RemoveAllListeners();
-                introBtn.onClick.AddListener(() => {
-                    intro.gameObject.SetActive(false);
-                    overoll.gameObject.SetActive(true);
-                });
-            }
-            if (overollBtn != null)
-            {
-                overollBtn.onClick.RemoveAllListeners();
-                overollBtn.onClick.AddListener(ReturnToStartScene);
-            }
         }
-        else
-        {
-            Button[] buttons = deadCanvasInstance.GetComponentsInChildren<Button>(true);
-            foreach (Button button in buttons)
-            {
-                button.onClick.RemoveAllListeners();
-                button.onClick.AddListener(ReturnToStartScene);
-            }
 
-            if (buttons.Length == 0)
-                Debug.LogWarning("[GameManager] Dead Canvas has no Button to return to the menu.");
-        }
+        DeadUIController deadUI = deadCanvasInstance.GetComponent<DeadUIController>();
+        if (deadUI == null)
+            deadUI = deadCanvasInstance.AddComponent<DeadUIController>();
+
+        deadUI.Configure(ReturnToStartScene);
+        deadUI.Show();
     }
 
     private GameObject GetDeadCanvas()
@@ -268,10 +261,13 @@ private void DetachFromParentForPersistence()
         eventSystemObject.AddComponent<InputSystemUIInputModule>();
     }
 
-    public void ReturnToStartScene()
+public void ReturnToStartScene()
     {
         if (!handlingDeath && SceneManager.GetActiveScene().name != desertSceneName)
             return;
+
+        if (SceneManager.GetActiveScene().name == desertSceneName)
+            AwardRunRewardIfNeeded();
 
         Time.timeScale = 1f;
         SceneManager.LoadScene(startSceneName);
@@ -280,6 +276,7 @@ private void DetachFromParentForPersistence()
     public void LoadDesertScene()
     {
         Time.timeScale = 1f;
+        MusicAudioManager.Instance?.StopMenuMusic();
         SceneManager.LoadScene(desertSceneName);
     }
 }
